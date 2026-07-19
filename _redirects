@@ -1,0 +1,5 @@
+# Root und alle unbekannten Pfade zeigen die App (SPA-tauglich, kein 404 bei Direktaufruf/Reload).
+# Vorhandene statische Dateien (manifest.json, sw.js, icons, …) werden von Netlify VOR diesen Regeln bedient.
+/            /SCG_Grafik_Generator.html   200
+/index.html  /SCG_Grafik_Generator.html   200
+/*           /SCG_Grafik_Generator.html   200

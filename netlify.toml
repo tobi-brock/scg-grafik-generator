@@ -1,0 +1,24 @@
+# Netlify-Konfiguration für den SCG Grafik-Generator (statische Single-File-App).
+# Ablauf: MacBook → git commit/push → Netlify Build → gleiche URL zeigt neue Version.
+
+[build]
+  # Kein Build-Schritt nötig (fertige Produktionsdateien werden direkt veröffentlicht).
+  publish = "."
+  command = ""
+
+# Service Worker darf nicht aggressiv gecacht werden → Updates werden zuverlässig erkannt.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# Bilder/Icons dürfen lange gecacht werden.
+[[headers]]
+  for = "/icon-*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
