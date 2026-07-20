@@ -106,6 +106,7 @@
   .gallery-item .gi-name{font-size:10px;color:#bbb;margin-top:4px;word-break:break-word;line-height:1.2;}
   .gallery-item{position:relative;}
   .gallery-item .gi-del{position:absolute;top:-7px;right:-7px;width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;font-size:11px;line-height:17px;text-align:center;border:1.5px solid #fff;}
+  .gallery-item .gi-badge{position:absolute;top:4px;left:4px;background:rgba(200,16,46,0.9);color:#fff;font-size:8.5px;font-weight:700;letter-spacing:.3px;padding:2px 5px;border-radius:4px;text-transform:uppercase;}
   .gallery-item.gi-upload{display:flex;flex-direction:column;align-items:center;justify-content:center;border-style:dashed;color:#bbb;min-height:92px;font-size:12px;font-weight:700;}
   .gallery-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .gallery-x{background:var(--panel-2);border:1px solid var(--line);color:#ccc;border-radius:6px;width:32px;height:32px;font-size:14px;cursor:pointer;}
@@ -341,7 +342,7 @@
       <select id="teamNameColor">
         <option value="#FFFFFF" selected>Weiß</option>
         <option value="#0D0D0D">Schwarz</option>
-        <option value="#C8102E">SCG Rot</option>
+        <option value="#C8102E">Vereinsrot</option>
         <option value="#7A0A1C">Bordeaux</option>
         <option value="#C9CDD1">Grau hell</option>
         <option value="#6B6F73">Grau dunkel</option>
@@ -351,7 +352,7 @@
         <option value="#EDEAE3">Creme</option>
       </select>
     </div>
-    <label>Euer Logo</label>
+    <label>Heim-Team-Logo</label>
     <div class="logo-row">
       <label class="upload">
         <div class="thumb" id="thumb-home"></div>
@@ -362,11 +363,11 @@
       <button type="button" class="logo-clear" id="clear-home" title="Logo entfernen">✕</button>
     </div>
     <div class="match-only">
-      <label>Größe eigenes Logo</label>
+      <label>Größe Heim-Team-Logo</label>
       <div class="step-seg" data-step="homeLogoSize"></div>
     </div>
 
-    <label>Gegner-Logo (optional — sonst Textname)</label>
+    <label>Auswärts-Team-Logo (optional — sonst Textname)</label>
     <div class="logo-row">
       <label class="upload">
         <div class="thumb" id="thumb-away"></div>
@@ -377,7 +378,7 @@
       <button type="button" class="logo-clear" id="clear-away" title="Logo entfernen">✕</button>
     </div>
     <div class="match-only">
-      <label>Größe Gegner-Logo</label>
+      <label>Größe Auswärts-Team-Logo</label>
       <div class="step-seg" data-step="awayLogoSize"></div>
     </div>
 
@@ -392,7 +393,7 @@
     <div class="x-controls">
     <label>Farbe des X</label>
     <select id="xColor">
-      <option value="#C8102E" selected>SCG Rot</option>
+      <option value="#C8102E" selected>Vereinsrot</option>
       <option value="#FFFFFF">Weiß</option>
       <option value="#0D0D0D">Schwarz</option>
       <option value="#7A0A1C">Bordeaux</option>
@@ -405,8 +406,10 @@
     </select>
     </div>
 
-    <div id="opponentNameField">
-      <label>Gegner-Name (Fallback / für Ergebnis-Zeile)</label>
+    <div id="opponentNameField" class="match-only">
+      <label>Heim-Team-Name (Fallback, falls kein Logo hochgeladen)</label>
+      <input type="text" id="homeTeamName" value="SC GRIMLINGHAUSEN 1936">
+      <label>Auswärts-Team-Name (Fallback, falls kein Logo hochgeladen)</label>
       <input type="text" id="opponentName" value="TSV NORF II">
     </div>
   </fieldset>
@@ -466,17 +469,17 @@
       <input type="text" id="erg-eyebrow" value="KREISLIGA A · 1. SPIELTAG">
       <div class="row2">
         <div>
-          <label>Tore SCG</label>
+          <label>Tore Heim-Team</label>
           <input type="number" id="erg-tore-scg" value="3" min="0">
         </div>
         <div>
-          <label>Tore Gegner</label>
+          <label>Tore Auswärts-Team</label>
           <input type="number" id="erg-tore-gegner" value="1" min="0">
         </div>
       </div>
       <label>Farbe der Zahl</label>
       <select id="erg-color">
-        <option value="#C8102E" selected>SCG Rot</option>
+        <option value="#C8102E" selected>Vereinsrot</option>
         <option value="#FFFFFF">Weiß</option>
         <option value="#0D0D0D">Schwarz</option>
         <option value="#7A0A1C">Bordeaux</option>
@@ -498,7 +501,7 @@
           <div>
             <label>Farbe linke Zahl</label>
             <select id="erg-num-left-color">
-              <option value="#C8102E" selected>SCG Rot</option>
+              <option value="#C8102E" selected>Vereinsrot</option>
               <option value="#FFFFFF">Weiß</option>
               <option value="#E6BB4D">Gold hell</option>
               <option value="#C4C9CD">Silber</option>
@@ -508,7 +511,7 @@
             <label>Farbe rechte Zahl</label>
             <select id="erg-num-right-color">
               <option value="#FFFFFF" selected>Weiß</option>
-              <option value="#C8102E">SCG Rot</option>
+              <option value="#C8102E">Vereinsrot</option>
               <option value="#9A9A9A">Grau</option>
               <option value="#C4C9CD">Silber</option>
             </select>
@@ -518,7 +521,7 @@
         <select id="erg-colon-color">
           <option value="#9A9A9A" selected>Grau</option>
           <option value="#FFFFFF">Weiß</option>
-          <option value="#C8102E">SCG Rot</option>
+          <option value="#C8102E">Vereinsrot</option>
         </select>
         <label>Größe der Zahlen</label>
         <div class="step-seg" data-step="ergNumSize"></div>
@@ -531,29 +534,29 @@
       <div class="line-caption" style="margin-top:14px;">Torschützen — je Zeile „Minute Name“ (chronologisch nach Minute verteilt)</div>
       <div class="row2">
         <div>
-          <label>SCG (links)</label>
+          <label>Heim-Team (links)</label>
           <textarea id="erg-scorer-home" style="min-height:90px;">12 MUSTERMANN
 34 BEISPIEL
 71 MUSTERMANN</textarea>
         </div>
         <div>
-          <label>Gegner (rechts)</label>
-          <textarea id="erg-scorer-away" style="min-height:90px;">55 GEGNER</textarea>
+          <label>Auswärts-Team (rechts)</label>
+          <textarea id="erg-scorer-away" style="min-height:90px;">55 AUSWÄRTS</textarea>
         </div>
       </div>
       <div class="row2">
         <div>
-          <label>Farbe SCG</label>
+          <label>Farbe Heim-Team</label>
           <select id="erg-scorer-home-color">
             <option value="#FFFFFF" selected>Weiß</option>
-            <option value="#C8102E">SCG Rot</option>
+            <option value="#C8102E">Vereinsrot</option>
             <option value="#E6BB4D">Gold hell</option>
             <option value="#C4C9CD">Silber</option>
             <option value="#9A9A9A">Grau</option>
           </select>
         </div>
         <div>
-          <label>Farbe Gegner</label>
+          <label>Farbe Auswärts-Team</label>
           <select id="erg-scorer-away-color">
             <option value="#9A9A9A" selected>Grau</option>
             <option value="#FFFFFF">Weiß</option>
@@ -563,7 +566,7 @@
           </select>
         </div>
       </div>
-      <div class="mini-hint">Beispiel: SCG trifft 12' &amp; 34', Gegner 55' → links zwei Einträge oben, rechts einer weiter unten (nach Minute).</div>
+      <div class="mini-hint">Beispiel: Heim-Team trifft 12' &amp; 34', Auswärts-Team 55' → links zwei Einträge oben, rechts einer weiter unten (nach Minute).</div>
 
       <div class="step-lbl" style="margin-top:14px;"><label style="margin:0;">Gesamter Inhalt — Höhe</label><span class="step-ends">1 höher · 5 tiefer</span></div>
       <div class="step-seg" data-step="ergShift"></div>
@@ -683,7 +686,7 @@
             <select id="lu-coach-color">
               <option value="#FFFFFF" selected>Weiß</option>
               <option value="#0D0D0D">Schwarz</option>
-              <option value="#C8102E">SCG Rot</option>
+              <option value="#C8102E">Vereinsrot</option>
               <option value="#7A0A1C">Bordeaux</option>
               <option value="#C9CDD1">Grau hell</option>
               <option value="#6B6F73">Grau dunkel</option>
@@ -724,7 +727,7 @@ RENÉ KAUFMANN</textarea>
               <option value="#C4C9CD" selected>Silber</option>
               <option value="#FFFFFF">Weiß</option>
               <option value="#0D0D0D">Schwarz</option>
-              <option value="#C8102E">SCG Rot</option>
+              <option value="#C8102E">Vereinsrot</option>
               <option value="#7A0A1C">Bordeaux</option>
               <option value="#9A9A9A">Grau</option>
               <option value="#C9A24D">Gold</option>
@@ -811,23 +814,23 @@ RENÉ KAUFMANN</textarea>
       <div style="margin-top:10px;">
         <div class="ic-row" data-layouts="uhrzeit,ticket2"><label>Akzent / roter Balken / Ticket-Stub</label>
           <select id="ic-accent">
-            <option value="#C8102E" selected>SCG Rot</option><option value="#7A0A1C">Bordeaux</option><option value="#E6BB4D">Gold hell</option><option value="#FFFFFF">Weiß</option><option value="#0D0D0D">Schwarz</option><option value="#9A9A9A">Grau</option><option value="#C4C9CD">Silber</option><option value="#EDEAE3">Creme</option>
+            <option value="#C8102E" selected>Vereinsrot</option><option value="#7A0A1C">Bordeaux</option><option value="#E6BB4D">Gold hell</option><option value="#FFFFFF">Weiß</option><option value="#0D0D0D">Schwarz</option><option value="#9A9A9A">Grau</option><option value="#C4C9CD">Silber</option><option value="#EDEAE3">Creme</option>
           </select></div>
         <div class="ic-row" data-layouts="klassisch,uhrzeit,ticket,ticket2,kompakt"><label>Datum / Wochentag</label>
           <select id="ic-date">
-            <option value="#FFFFFF" selected>Weiß</option><option value="#C8102E">SCG Rot</option><option value="#E6BB4D">Gold hell</option><option value="#9A9A9A">Grau</option><option value="#C4C9CD">Silber</option><option value="#7A0A1C">Bordeaux</option><option value="#0D0D0D">Schwarz</option><option value="#EDEAE3">Creme</option>
+            <option value="#FFFFFF" selected>Weiß</option><option value="#C8102E">Vereinsrot</option><option value="#E6BB4D">Gold hell</option><option value="#9A9A9A">Grau</option><option value="#C4C9CD">Silber</option><option value="#7A0A1C">Bordeaux</option><option value="#0D0D0D">Schwarz</option><option value="#EDEAE3">Creme</option>
           </select></div>
         <div class="ic-row" data-layouts="klassisch,uhrzeit,ticket,ticket2"><label>Uhrzeit</label>
           <select id="ic-time">
-            <option value="#FFFFFF" selected>Weiß</option><option value="#C8102E">SCG Rot</option><option value="#E6BB4D">Gold hell</option><option value="#9A9A9A">Grau</option><option value="#C4C9CD">Silber</option><option value="#7A0A1C">Bordeaux</option><option value="#0D0D0D">Schwarz</option><option value="#EDEAE3">Creme</option>
+            <option value="#FFFFFF" selected>Weiß</option><option value="#C8102E">Vereinsrot</option><option value="#E6BB4D">Gold hell</option><option value="#9A9A9A">Grau</option><option value="#C4C9CD">Silber</option><option value="#7A0A1C">Bordeaux</option><option value="#0D0D0D">Schwarz</option><option value="#EDEAE3">Creme</option>
           </select></div>
         <div class="ic-row" data-layouts="klassisch"><label>„UHR“-Symbol</label>
           <select id="ic-uhr">
-            <option value="#C8102E" selected>SCG Rot</option><option value="#E6BB4D">Gold hell</option><option value="#FFFFFF">Weiß</option><option value="#9A9A9A">Grau</option><option value="#C4C9CD">Silber</option><option value="#7A0A1C">Bordeaux</option><option value="#EDEAE3">Creme</option>
+            <option value="#C8102E" selected>Vereinsrot</option><option value="#E6BB4D">Gold hell</option><option value="#FFFFFF">Weiß</option><option value="#9A9A9A">Grau</option><option value="#C4C9CD">Silber</option><option value="#7A0A1C">Bordeaux</option><option value="#EDEAE3">Creme</option>
           </select></div>
         <div class="ic-row" data-layouts="klassisch,uhrzeit,ticket,ticket2,kompakt"><label>Spielstätte</label>
           <select id="ic-venue">
-            <option value="#FFFFFF" selected>Weiß</option><option value="#C8102E">SCG Rot</option><option value="#E6BB4D">Gold hell</option><option value="#9A9A9A">Grau</option><option value="#C4C9CD">Silber</option><option value="#7A0A1C">Bordeaux</option><option value="#0D0D0D">Schwarz</option><option value="#EDEAE3">Creme</option>
+            <option value="#FFFFFF" selected>Weiß</option><option value="#C8102E">Vereinsrot</option><option value="#E6BB4D">Gold hell</option><option value="#9A9A9A">Grau</option><option value="#C4C9CD">Silber</option><option value="#7A0A1C">Bordeaux</option><option value="#0D0D0D">Schwarz</option><option value="#EDEAE3">Creme</option>
           </select></div>
         <div class="ic-row" data-layouts="klassisch,uhrzeit,ticket,ticket2,kompakt"><label>Adresse / Schiedsrichter</label>
           <select id="ic-sub">
@@ -835,7 +838,7 @@ RENÉ KAUFMANN</textarea>
           </select></div>
         <div class="ic-row" data-layouts="ticket"><label>Ticket-Rahmen</label>
           <select id="ic-border">
-            <option value="#C9CDD1" selected>Grau hell</option><option value="#FFFFFF">Weiß</option><option value="#C8102E">SCG Rot</option><option value="#E6BB4D">Gold hell</option><option value="#9A9A9A">Grau</option><option value="#6B6F73">Grau dunkel</option>
+            <option value="#C9CDD1" selected>Grau hell</option><option value="#FFFFFF">Weiß</option><option value="#C8102E">Vereinsrot</option><option value="#E6BB4D">Gold hell</option><option value="#9A9A9A">Grau</option><option value="#6B6F73">Grau dunkel</option>
           </select></div>
       </div>
     </details>
@@ -853,7 +856,7 @@ RENÉ KAUFMANN</textarea>
         <select id="footer-symbol-color">
           <option value="#FFFFFF" selected>Weiß</option>
           <option value="#0D0D0D">Schwarz</option>
-          <option value="#C8102E">SCG Rot</option>
+          <option value="#C8102E">Vereinsrot</option>
           <option value="#7A0A1C">Bordeaux</option>
           <option value="#C9CDD1">Grau hell</option>
           <option value="#6B6F73">Grau dunkel</option>
@@ -874,7 +877,7 @@ RENÉ KAUFMANN</textarea>
         <select id="footer-middle-color">
           <option value="#FFFFFF" selected>Weiß</option>
           <option value="#0D0D0D">Schwarz</option>
-          <option value="#C8102E">SCG Rot</option>
+          <option value="#C8102E">Vereinsrot</option>
           <option value="#7A0A1C">Bordeaux</option>
           <option value="#C9CDD1">Grau hell</option>
           <option value="#6B6F73">Grau dunkel</option>
@@ -895,7 +898,7 @@ RENÉ KAUFMANN</textarea>
         <select id="footer-team-color">
           <option value="#FFFFFF">Weiß</option>
           <option value="#0D0D0D">Schwarz</option>
-          <option value="#C8102E" selected>SCG Rot</option>
+          <option value="#C8102E" selected>Vereinsrot</option>
           <option value="#7A0A1C">Bordeaux</option>
           <option value="#C9CDD1">Grau hell</option>
           <option value="#6B6F73">Grau dunkel</option>
@@ -924,7 +927,7 @@ RENÉ KAUFMANN</textarea>
       <button type="button" class="gallery-x" id="galleryClose" title="Schließen">✕</button>
     </div>
     <div class="gallery-cats" id="galleryCats"></div>
-    <div class="hint" id="galleryHint" style="margin:8px 0 4px;">Bild antippen = einsetzen · das ✕ auf dem Bild löscht es. Neue Assets über die Kachel „＋ Hochladen“.</div>
+    <div class="hint" id="galleryHint" style="margin:8px 0 4px;">Bild antippen = einsetzen · das ✕ löscht es (nur eigene Uploads). Bilder mit „Standard“-Marke sind für alle Nutzer fest hinterlegt. Neue Assets über die Kachel „＋ Hochladen“ (nur lokal auf diesem Gerät sichtbar).</div>
     <div class="gallery-grid" id="galleryGrid"></div>
     <input type="file" id="galleryUploadInput" accept="image/*" style="display:none;">
     <div class="gallery-foot" id="galleryUsage"></div>
@@ -1237,9 +1240,23 @@ function renderTypoFields(){
 }
 
 /* ---------------- Stabile Spielerliste (11 Slots, formationsunabhängig) ---------------- */
+// Geteilter Standard-Kader: fest im Code hinterlegt, daher für JEDEN Nutzer beim ersten Öffnen
+// vorausgefüllt (ohne eigenen Upload). Reihenfolge = Aufstellungs-Slots (0 = Torwart).
+// Aktualisieren: num/name eintragen, photoDataUrl optional (data:image/…;base64,…), dann pushen.
+const DEFAULT_SQUAD = [
+  // {num:'1', name:'MUSTERMANN', photoDataUrl:null},
+];
 const PLAYER_COUNT = 11;
 let players = [];
-for(let i=0;i<PLAYER_COUNT;i++) players.push({ num:'', name:'', photoSize:3, photoV:3, o:{ nameSize:0, numSize:0, numGap:0, nameW:0, letter:0 } });
+for(let i=0;i<PLAYER_COUNT;i++){
+  const d = DEFAULT_SQUAD[i];
+  players.push({ num:(d&&d.num)||'', name:(d&&d.name)||'', photoSize:3, photoV:3, o:{ nameSize:0, numSize:0, numGap:0, nameW:0, letter:0 } });
+  if(d && d.photoDataUrl){
+    const img = new Image();
+    img.onload = ()=>{ state.lineupPhotos[i]=img; state_thumbs[i]=d.photoDataUrl; if(typeof renderFormationFields==='function') renderFormationFields(); };
+    img.src = d.photoDataUrl;
+  }
+}
 let selectedPlayer = 0;
 let txtScope = 'global';
 const state_thumbs = {};   // dataURLs der Spielerfotos (für Vorschau-Thumbnails, überleben Rebuild)
@@ -1900,6 +1917,7 @@ function drawErgebnis(scale,secondaryColor){
   const geg = document.getElementById('erg-tore-gegner').value || '0';
   const ergColor = document.getElementById('erg-color').value;
   const oppName = document.getElementById('opponentName').value;
+  const homeName = document.getElementById('homeTeamName').value;
   const homeSize = sv('homeLogoSize')*scale;
   const awaySize = sv('awayLogoSize')*scale;
 
@@ -1914,7 +1932,7 @@ function drawErgebnis(scale,secondaryColor){
   if(layout==='klassisch'){
     // Logo links · große Zahl mittig · Logo rechts + „ABPFIFF“ (nur hier)
     const boxY=(560+LEVELS.mitte)*scale;
-    drawErgLogoOrText(300, boxY, homeSize, state.home, 'SCG', scale);
+    drawErgLogoOrText(300, boxY, homeSize, state.home, homeName, scale);
     drawErgLogoOrText(780, boxY, awaySize, state.away, oppName, scale);
     bigScore(540, (900+LEVELS.mitte)*scale, `${scg}:${geg}`, 0.86);
     let ab = applyTypo('eyebrow', scale, secondaryColor);
@@ -1923,7 +1941,7 @@ function drawErgebnis(scale,secondaryColor){
   else if(layout==='nebenlogo'){
     // eigenes Logo · eigene Zahl · gegnerische Zahl · Gegnerlogo
     const rowY=(640+LEVELS.mitte)*scale, s=Math.min(homeSize,awaySize);
-    drawErgLogoOrText(200, rowY, s, state.home, 'SCG', scale);
+    drawErgLogoOrText(200, rowY, s, state.home, homeName, scale);
     drawErgLogoOrText(880, rowY, s, state.away, oppName, scale);
     const e = applyTypo('ergebnis', scale, ergColor, 0.62);
     ctx.textAlign='center';
@@ -1938,7 +1956,7 @@ function drawErgebnis(scale,secondaryColor){
     const e = applyTypo('ergebnis', scale, ergColor, 0.72);
     const txt=`${scg}:${geg}`; const w=measureSpaced(ctx,txt,e.spacing);
     fillTextSpaced(ctx, txt, 540, cy, e.spacing);
-    drawErgLogoOrText(540 - w/2 - s*0.8, cy - e.size*0.5, s, state.home, 'SCG', scale);
+    drawErgLogoOrText(540 - w/2 - s*0.8, cy - e.size*0.5, s, state.home, homeName, scale);
     drawErgLogoOrText(540 + w/2 + s*0.8, cy - e.size*0.5, s, state.away, oppName, scale);
   }
   else if(layout==='zahlenaussen'){
@@ -1949,7 +1967,7 @@ function drawErgebnis(scale,secondaryColor){
     const midY = rowY + s/2 + e.size*0.34;
     ctx.textAlign='center';
     ctx.fillStyle=document.getElementById('erg-num-left-color').value; ctx.fillText(scg, (170-gap)*scale, midY);
-    drawErgLogoOrText(360-gap*0.5, rowY, s, state.home, 'SCG', scale);
+    drawErgLogoOrText(360-gap*0.5, rowY, s, state.home, homeName, scale);
     applyTypo('ergebnis', scale, document.getElementById('erg-colon-color').value, 0.60*sv('ergColonSize'));
     ctx.textAlign='center'; ctx.fillText(':', 540, rowY + s/2 + e.size*0.30);
     drawErgLogoOrText(720+gap*0.5, rowY, s, state.away, oppName, scale);
@@ -1960,7 +1978,7 @@ function drawErgebnis(scale,secondaryColor){
   else { // neutral — kleine Logos mittig oben, sehr große Zahl darunter (kompakte Endstand-Karte)
     const s=Math.min(homeSize,awaySize)*0.58;
     const ly=(470+LEVELS.mitte)*scale;
-    drawErgLogoOrText(540 - s*0.72, ly, s, state.home, 'SCG', scale);
+    drawErgLogoOrText(540 - s*0.72, ly, s, state.home, homeName, scale);
     drawErgLogoOrText(540 + s*0.72, ly, s, state.away, oppName, scale);
     // feine Trennlinie
     ctx.save(); ctx.strokeStyle='rgba(255,255,255,0.18)'; ctx.lineWidth=2*scale;
@@ -2689,9 +2707,6 @@ function applyTabVisibility(){
   document.querySelectorAll('.match-only').forEach(el=>{
     el.style.display = (activeTab==='lineup') ? 'none' : '';
   });
-  // Gegnername-Textfeld wird nicht mehr verwendet (Teams nur über Logos, Ergebnis über eigene Begegnungszeile)
-  const oppField = document.getElementById('opponentNameField');
-  if(oppField) oppField.style.display = 'none';
   // Farbe der Begegnungszeile nur beim Ergebnis relevant
   const tnc = document.getElementById('teamNameColorField');
   if(tnc) tnc.style.display = (activeTab==='ergebnis') ? 'block' : 'none';
@@ -2836,7 +2851,18 @@ document.getElementById('file-luBg').addEventListener('change', ()=>{
   // draw() folgt aus dem generischen loadFile-Handler
 });
 
-/* ---------------- Asset-Bibliothek (lokal) ---------------- */
+/* ---------------- Asset-Bibliothek (geteilt + lokal) ---------------- */
+// Geteilte Standard-Assets: fest im Code hinterlegt, daher für JEDEN Nutzer sofort sichtbar,
+// ohne eigenen Upload — im Gegensatz zu den privaten Assets unten (nur im eigenen Browser).
+// Neue Einträge: {name:'…', dataUrl:'data:image/png;base64,…'} in die passende Kategorie einfügen und pushen.
+const DEFAULT_ASSETS = {
+  eigenesLogo: [],
+  gegnerLogos: [],
+  trainerbilder: [],
+  spielerbilder: [],
+  hintergruende: [],
+  sonstige: []
+};
 const ASSETS_KEY = 'scg_assets_v1';
 function getAssets(){ try{ return JSON.parse(localStorage.getItem(ASSETS_KEY)||'{}'); }catch(e){ return {}; } }
 function saveAssets(a){ try{ localStorage.setItem(ASSETS_KEY, JSON.stringify(a)); updateStorageMeter(); }catch(e){ alert('Speicher voll — Bibliothek konnte nicht gespeichert werden. Bitte alte Assets/Entwürfe löschen.'); } }
@@ -2850,7 +2876,7 @@ function localStorageBytes(){
 }
 async function updateStorageMeter(){
   const el = document.getElementById('storageMeter'); if(!el) return;
-  let assetCount=0; try{ const a=getAssets(); Object.keys(a).forEach(k=> assetCount += (a[k]||[]).length); }catch(e){}
+  let assetCount=0; try{ const a=getAssets(); Object.keys(a).forEach(k=> assetCount += (a[k]||[]).length); Object.keys(DEFAULT_ASSETS).forEach(k=> assetCount += (DEFAULT_ASSETS[k]||[]).length); }catch(e){}
   let projCount=0; try{ projCount = Object.keys(getAllProjects()).length; }catch(e){}
   const lsMB = (localStorageBytes()/1048576).toFixed(2);
   let quota='';
@@ -2863,7 +2889,7 @@ window.updateStorageMeter = updateStorageMeter;
 let galleryTarget=null, galleryCat=null;
 const ASSET_CATS = [
   {key:'eigenesLogo',  label:'Vereinslogos',  target:'home',      compress:'home'},
-  {key:'gegnerLogos',  label:'Gegnerlogos',   target:'away',      compress:'away'},
+  {key:'gegnerLogos',  label:'Auswärts-Team-Logos', target:'away', compress:'away'},
   {key:'trainerbilder',label:'Trainerbilder', target:'coach',     compress:'coach'},
   {key:'spielerbilder',label:'Spielerbilder', target:'__player__',compress:'player-lineup'},
   {key:'hintergruende',label:'Hintergründe',  target:'__bg__',    compress:'bg'},
@@ -2883,7 +2909,7 @@ function renderGalleryCats(){
   const wrap=document.getElementById('galleryCats'); wrap.innerHTML='';
   const all=getAssets();
   ASSET_CATS.forEach(c=>{
-    const n=(all[c.key]||[]).length;
+    const n=(DEFAULT_ASSETS[c.key]||[]).length + (all[c.key]||[]).length;
     const b=document.createElement('button'); b.type='button'; b.textContent=`${c.label}${n?` (${n})`:''}`;
     if(c.key===galleryCat) b.classList.add('active');
     b.addEventListener('click', ()=>{ galleryCat=c.key; renderGalleryCats(); renderGallery(); });
@@ -2892,28 +2918,40 @@ function renderGalleryCats(){
 }
 function renderGallery(){
   const grid=document.getElementById('galleryGrid'); grid.innerHTML='';
-  const all=getAssets(); const items=all[galleryCat]||[];
+  const all=getAssets(); const localItems=all[galleryCat]||[];
+  const sharedItems=DEFAULT_ASSETS[galleryCat]||[];
   // Upload-Kachel (immer zuerst) → lädt direkt in die aktuelle Kategorie
   const up=document.createElement('div'); up.className='gallery-item gi-upload';
   up.innerHTML='＋<div style="margin-top:4px;">Hochladen</div>';
   up.addEventListener('click', ()=> document.getElementById('galleryUploadInput').click());
   grid.appendChild(up);
-  items.forEach((it,idx)=>{
+  // Geteilte Standard-Assets zuerst (für alle Nutzer sichtbar, nicht löschbar)
+  sharedItems.forEach(it=>{
+    const el=document.createElement('div'); el.className='gallery-item';
+    const th=document.createElement('div'); th.className='gi-thumb'; th.style.backgroundImage=`url(${it.dataUrl})`;
+    const badge=document.createElement('div'); badge.className='gi-badge'; badge.textContent='Standard';
+    const nm=document.createElement('div'); nm.className='gi-name'; nm.textContent=it.name;
+    el.addEventListener('click',()=>pickAsset(it.dataUrl));
+    el.appendChild(th); el.appendChild(badge); el.appendChild(nm); grid.appendChild(el);
+  });
+  // Eigene, lokal hochgeladene Assets (nur im eigenen Browser sichtbar, löschbar)
+  localItems.forEach((it,idx)=>{
     const el=document.createElement('div'); el.className='gallery-item';
     const th=document.createElement('div'); th.className='gi-thumb'; th.style.backgroundImage=`url(${it.dataUrl})`;
     const nm=document.createElement('div'); nm.className='gi-name'; nm.textContent=it.name;
     const dl=document.createElement('div'); dl.className='gi-del'; dl.textContent='✕'; dl.title='Löschen';
     el.addEventListener('click',()=>pickAsset(it.dataUrl));
-    dl.addEventListener('click',e=>{ e.stopPropagation(); if(!confirm('Asset löschen?')) return; items.splice(idx,1); all[galleryCat]=items; saveAssets(all); renderGalleryCats(); renderGallery(); });
+    dl.addEventListener('click',e=>{ e.stopPropagation(); if(!confirm('Asset löschen?')) return; localItems.splice(idx,1); all[galleryCat]=localItems; saveAssets(all); renderGalleryCats(); renderGallery(); });
     el.appendChild(th); el.appendChild(nm); el.appendChild(dl); grid.appendChild(el);
   });
   renderGalleryUsage();
 }
 function renderGalleryUsage(){
   const el=document.getElementById('galleryUsage'); if(!el) return;
-  const all=getAssets(); let total=0; Object.keys(all).forEach(k=> total+=(all[k]||[]).length);
+  const all=getAssets(); let localTotal=0; Object.keys(all).forEach(k=> localTotal+=(all[k]||[]).length);
+  let sharedTotal=0; Object.keys(DEFAULT_ASSETS).forEach(k=> sharedTotal+=(DEFAULT_ASSETS[k]||[]).length);
   const mb=(localStorageBytes()/1048576).toFixed(2);
-  el.textContent = `${total} Assets gesamt · ${mb} MB von ~5 MB (localStorage)`;
+  el.textContent = `${sharedTotal} geteilte Standard-Assets · ${localTotal} eigene (lokal) · ${mb} MB von ~5 MB (localStorage)`;
 }
 function resolveTarget(){
   if(galleryExplicitTarget) return galleryExplicitTarget;
