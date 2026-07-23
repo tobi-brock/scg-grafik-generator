@@ -174,8 +174,8 @@
   .lineup-upload .thumb{width:26px;height:26px;margin:0;}
   .lineup-upload input{display:none;}
 
-  /* Auto-Großschreibung aller Texteingaben (Anzeige im Dashboard) */
-  #form input[type=text], #form textarea{ text-transform:uppercase; }
+  /* Hinweis: Die Grafik schreibt Texte automatisch groß (ß bleibt als ẞ erhalten).
+     Eingabefelder NICHT per CSS großschreiben, sonst würde „ß“ dort fälschlich als „SS“ erscheinen. */
 
   /* Kleines X auf dem Bild zum Entfernen; Klick aufs Bild = ersetzen */
   .upload{position:relative;}
@@ -1039,7 +1039,7 @@ function applyTypo(key, scale, color, sizeFactor){
 }
 function transformText(text, key){
   const t = TYPO[key];
-  if(t.transform === 'upper') return String(text).toUpperCase();
+  if(t.transform === 'upper') return String(text).replace(/ß/g,'').toUpperCase().replace(//g,'ẞ');
   if(t.transform === 'lower') return String(text).toLowerCase();
   return String(text);
 }
@@ -1414,7 +1414,7 @@ function makeButtons(container, current, onPick, extra){
 function buildPlayerPanel(){
   const panel = document.getElementById('playerPanel');
   const p = players[selectedPlayer];
-  panel.innerHTML = `<div class="pp-head">Spieler ${selectedPlayer+1}${p.name?(' · '+p.name.toUpperCase()):''} — Fotoeinstellungen</div>`;
+  panel.innerHTML = `<div class="pp-head">Spieler ${selectedPlayer+1}${p.name?(' · '+p.name.replace(/ß/g,'').toUpperCase().replace(//g,'ẞ')):''} — Fotoeinstellungen</div>`;
 
   const addLabeled = (txt)=>{ const l=document.createElement('label'); l.textContent=txt; l.style.margin='6px 0 2px'; panel.appendChild(l); };
 
@@ -1441,7 +1441,7 @@ function buildPlayerPanel(){
   const sw=document.createElement('select');
   const optH=document.createElement('option'); optH.value=''; optH.textContent='— Spieler wählen —'; sw.appendChild(optH);
   const tags=positionTags();
-  for(let j=0;j<PLAYER_COUNT;j++){ if(j===selectedPlayer) continue; const o=document.createElement('option'); o.value=j; o.textContent=`${j+1} · ${tags[j]||''}${players[j].name?(' · '+players[j].name.toUpperCase()):''}`; sw.appendChild(o); }
+  for(let j=0;j<PLAYER_COUNT;j++){ if(j===selectedPlayer) continue; const o=document.createElement('option'); o.value=j; o.textContent=`${j+1} · ${tags[j]||''}${players[j].name?(' · '+players[j].name.replace(/ß/g,'').toUpperCase().replace(//g,'ẞ')):''}`; sw.appendChild(o); }
   sw.addEventListener('change', e=>{ const j=Number(e.target.value); if(!isNaN(j)&&e.target.value!==''){ swapPlayers(selectedPlayer, j); selectedPlayer=j; renderLineupFields(); draw(); } });
   panel.appendChild(sw);
 
@@ -1671,9 +1671,9 @@ function draw(){
   const footerScale = sv('footerSymSize');
   ctx.font = `900 ${24*scale*footerScale}px Inter`;
   fillMultiColorSpaced(ctx, [
-    { text: document.getElementById('footer-symbol').value.toUpperCase(), color: document.getElementById('footer-symbol-color').value },
-    { text: document.getElementById('footer-middle').value.toUpperCase(), color: document.getElementById('footer-middle-color').value },
-    { text: document.getElementById('footer-team').value.toUpperCase(), color: document.getElementById('footer-team-color').value }
+    { text: document.getElementById('footer-symbol').value.replace(/ß/g,'').toUpperCase().replace(//g,'ẞ'), color: document.getElementById('footer-symbol-color').value },
+    { text: document.getElementById('footer-middle').value.replace(/ß/g,'').toUpperCase().replace(//g,'ẞ'), color: document.getElementById('footer-middle-color').value },
+    { text: document.getElementById('footer-team').value.replace(/ß/g,'').toUpperCase().replace(//g,'ẞ'), color: document.getElementById('footer-team-color').value }
   ], 540, footerY, 5*scale*footerScale);
 
   if(activeTab==='lineup') drawLineupPairing(scale, footerY + 40*scale);
@@ -1761,7 +1761,7 @@ function strokeTextSpaced(ctx,text,cx,y,spacing){
 // Kern: gestylte Hauptüberschrift zeichnen (mittig auf cx), Auto-Fit, Effekte. Gibt Breite/Höhe zurück.
 function drawStyledHeadline(text, cx, y, scale, baseSize, cfg, maxWidth){
   const st = HEADLINE_STYLES[cfg.style] || HEADLINE_STYLES.modern;
-  const txt = String(text).toUpperCase();
+  const txt = String(text).replace(/ß/g,'').toUpperCase().replace(//g,'ẞ');
   let fontPx = baseSize * (HL_SIZE[(cfg.sizeStep||3)-1]) * scale;
   let ls = (st.ls + HL_LETTER[(cfg.letterStep||3)-1]) * scale;
   const fx = cfg.fxStep || 3;
@@ -2098,7 +2098,7 @@ function drawErgebnis(scale,secondaryColor){
       let y = infoBase + 150*scale;
       const leftRight = 500, rightLeft = 580;   // Mitte-Lücke
       merged.forEach(g=>{
-        const label = `${g.minute}'  ${g.name}`.toUpperCase();
+        const label = `${g.minute}'  ${g.name}`.replace(/ß/g,'').toUpperCase().replace(//g,'ẞ');
         if(g.team==='home'){
           ctx.fillStyle = homeColor; ctx.font = `${t.size}px "Inter"`; ctx.textAlign='right';
           ctx.fillText(label, leftRight*scale, y);
@@ -2396,7 +2396,7 @@ function drawBottomRightBlock(scale){
   const leftW = innerW - (hasCoach ? boxW + 14*scale : 0);
   ctx.font = `600 ${namesPx}px Inter`;
   const nameLines = hasNames
-    ? namesTxt.toUpperCase().split(/\r?\n/).map(l=>l.trim()).filter(l=>l!=='')
+    ? namesTxt.replace(/ß/g,'').toUpperCase().replace(//g,'ẞ').split(/\r?\n/).map(l=>l.trim()).filter(l=>l!=='')
         .reduce((acc,l)=> acc.concat(wrapToLines(ctx, l, leftW, 2)), []).slice(0,3)
     : [];
   const labelBlockH = (hasLabel ? labelPx*1.25 : 0) + (hasNames ? (hasLabel?6*scale:0) + nameLines.length*namesPx*1.2 : 0);
@@ -2638,7 +2638,7 @@ function drawLineupPlayer(scale, cx, baseY, cardW, index, maxTopY, maxBarW){
   ctx.textAlign = 'center';
   ctx.fillStyle = COLORS.white;
   ctx.font = `${numT.weight} ${numPx}px "${numT.font}", sans-serif`;
-  ctx.fillText(String(num).toUpperCase(), tileX + tileW/2, barY + barH/2 + 1*scale);
+  ctx.fillText(String(num).replace(/ß/g,'').toUpperCase().replace(//g,'ẞ'), tileX + tileW/2, barY + barH/2 + 1*scale);
 
   // Name — einzeilig wenn möglich; sonst moderat verkleinern (Mindestgröße), erst dann zweizeilig
   const nameMaxWidth = nameW - padName;
@@ -2718,7 +2718,7 @@ function drawBenchPanel(scale, topY){
   ctx.fillStyle = COLORS.white;
   ctx.font = `500 ${Math.min(20*scale, lineH*0.72)}px Inter`;
   raw.forEach((line,i)=>{
-    ctx.fillText(line.toUpperCase(), boxX + 16*scale, boxY + headingH + (i+1)*lineH - lineH*0.32);
+    ctx.fillText(line.replace(/ß/g,'').toUpperCase().replace(//g,'ẞ'), boxX + 16*scale, boxY + headingH + (i+1)*lineH - lineH*0.32);
   });
   ctx.textAlign = 'left';
 }
@@ -2737,11 +2737,11 @@ function drawNeuzugang(scale){
   }
 
   ctx.fillStyle=COLORS.white; ctx.font=`${100*scale}px Anton`; ctx.textAlign='center';
-  ctx.fillText(document.getElementById('nz-name').value.toUpperCase(), 540, 1330*scale);
+  ctx.fillText(document.getElementById('nz-name').value.replace(/ß/g,'').toUpperCase().replace(//g,'ẞ'), 540, 1330*scale);
   ctx.textAlign='left';
 
   ctx.fillStyle=COLORS.grey; ctx.font=`400 ${28*scale}px Inter`;
-  fillTextSpaced(ctx, document.getElementById('nz-info').value.toUpperCase(), 540, 1400*scale, 1*scale);
+  fillTextSpaced(ctx, document.getElementById('nz-info').value.replace(/ß/g,'').toUpperCase().replace(//g,'ẞ'), 540, 1400*scale, 1*scale);
 }
 
 /* ---- Überschrift-Stil-UI (pro Template) ---- */
@@ -2845,7 +2845,7 @@ function drawMonatsvorschau(scale, W, H){
   const monthRight = (1080 - marginX) + mvVal(MV_POS, mMonth.posX)*120;
   const monthY = headerCenterY + monthPx*0.34 + mvVal(MV_POS, mMonth.posY)*70*scale;
   ctx.textBaseline='alphabetic';
-  mvFitRight(String(mMonth.text||'').toUpperCase(), monthRight, monthY, 620*scale, monthPx, mMonth.font, mMonth.color, 400);
+  mvFitRight(String(mMonth.text||'').replace(/ß/g,'').toUpperCase().replace(//g,'ẞ'), monthRight, monthY, 620*scale, monthPx, mMonth.font, mMonth.color, 400);
   // Leiste links, oberhalb der ersten Kachel, deutlich größer
   drawMVBar(scale, marginX, headerCenterY);
 
@@ -2873,20 +2873,20 @@ function drawMVBar(scale, leftX, centerY){
   const y = centerY - barH/2;
   ctx.textBaseline='middle';
   ctx.font = `400 ${lPx}px "${bl.font}", sans-serif`;
-  const lTextW = ctx.measureText(String(bl.text||'').toUpperCase()).width;
+  const lTextW = ctx.measureText(String(bl.text||'').replace(/ß/g,'').toUpperCase().replace(//g,'ẞ')).width;
   ctx.font = `400 ${rPx}px "${br.font}", sans-serif`;
-  const rTextW = ctx.measureText(String(br.text||'').toUpperCase()).width;
+  const rTextW = ctx.measureText(String(br.text||'').replace(/ß/g,'').toUpperCase().replace(//g,'ẞ')).width;
   const lW = lTextW + padX*2, rW = rTextW + padX*2;
   let x = leftX;   // linksbündig
   // linkes Feld
   roundRectPathSides(ctx, x, y, lW, barH, barH*0.24, 0); ctx.fillStyle=bl.bg; ctx.fill();
   ctx.font = `400 ${lPx}px "${bl.font}", sans-serif`; ctx.fillStyle=bl.fg; ctx.textAlign='center';
-  ctx.fillText(String(bl.text||'').toUpperCase(), x+lW/2, centerY + lPx*0.04);
+  ctx.fillText(String(bl.text||'').replace(/ß/g,'').toUpperCase().replace(//g,'ẞ'), x+lW/2, centerY + lPx*0.04);
   x += lW + gap;
   // rechtes Feld
   roundRectPathSides(ctx, x, y, rW, barH, 0, barH*0.24); ctx.fillStyle=br.bg; ctx.fill();
   ctx.font = `400 ${rPx}px "${br.font}", sans-serif`; ctx.fillStyle=br.fg;
-  ctx.fillText(String(br.text||'').toUpperCase(), x+rW/2, centerY + rPx*0.04);
+  ctx.fillText(String(br.text||'').replace(/ß/g,'').toUpperCase().replace(//g,'ẞ'), x+rW/2, centerY + rPx*0.04);
   ctx.textAlign='left'; ctx.textBaseline='alphabetic';
 }
 function drawMVTile(x, y, w, h, tile, oppImg, compImg, scale){
@@ -2903,8 +2903,8 @@ function drawMVTile(x, y, w, h, tile, oppImg, compImg, scale){
   }
   // Textzeile unten (Datum / Uhrzeit)
   const parts = [];
-  if(tile.date) parts.push(String(tile.date).toUpperCase());
-  if(tile.time) parts.push(String(tile.time).toUpperCase());
+  if(tile.date) parts.push(String(tile.date).replace(/ß/g,'').toUpperCase().replace(//g,'ẞ'));
+  if(tile.time) parts.push(String(tile.time).replace(/ß/g,'').toUpperCase().replace(//g,'ẞ'));
   const textLine = parts.join('  /  ');
   const textPx = Math.min(w*0.115, 40*scale);
   const textBaseY = y + h - pad - textPx*0.2;
