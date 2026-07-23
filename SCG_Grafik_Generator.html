@@ -155,6 +155,18 @@
   .mv-upload-mini .mv-uplabel{font-size:11px;color:#bbb;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
   .mv-upload-mini input[type=file]{display:none;}
   .mv-clear-mini{margin-left:auto;color:#e66;font-size:12px;cursor:pointer;padding:0 4px;}
+  .mv-tile>summary{cursor:grab;}
+  .mv-tile.mv-dragging{opacity:.5;}
+  .mv-arrows{display:flex;gap:2px;margin-left:auto;}
+  .mv-arrow{background:var(--panel-2);border:1px solid var(--line);color:#bbb;border-radius:4px;width:22px;height:22px;font-size:10px;line-height:1;cursor:pointer;padding:0;}
+  .mv-arrow:hover{background:var(--red);border-color:var(--red);color:#fff;}
+  .mv-applyall{width:100%;margin-top:8px;background:var(--panel-2);color:#eee;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:11.5px;font-weight:700;cursor:pointer;}
+  .mv-applyall:hover{border-color:var(--red);color:#fff;}
+  .mv-fine{margin-top:6px;border-top:1px solid var(--line);padding-top:6px;}
+  .mv-fine>summary{cursor:pointer;font-size:11px;color:#9a9a9a;list-style:none;}
+  .mv-fine>summary::-webkit-details-marker{display:none;}
+  .mv-fine>summary::before{content:"▸ ";}
+  .mv-fine[open]>summary::before{content:"▾ ";}
 
   .lineup-slot{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
   .lineup-upload{padding:4px;border:1px dashed var(--line);border-radius:5px;background:var(--panel-2);cursor:pointer;flex:0 0 auto;position:relative;}
@@ -1046,30 +1058,28 @@ const MV_PAD       = [0.55,0.78,1.00,1.30,1.65];   // Innenabstand
 const MV_MONTHSIZE = [0.70,0.85,1.00,1.20,1.42];
 const MV_BARSIZE   = [0.75,0.88,1.00,1.15,1.32];
 const MV_CLUBSIZE  = [0.62,0.80,1.00,1.25,1.55];
-const MV_PLAYERSIZE= [0.70,0.85,1.00,1.20,1.45];
 function mvClamp(v){ return Math.max(1, Math.min(5, v||3)); }
 function mvVal(arr, step){ return arr[mvClamp(step)-1]; }
 function defaultMVTile(){
-  return { date:'', time:'', bg:'#C8102E', fg:'#F4E9C1', logoSize:3, logoPos:3, gap:3, pad:3 };
+  return { date:'', time:'', bg:'#C8102E', fg:'#FFFFFF', logoSize:3, logoPos:3, gap:3, pad:3 };
 }
 function defaultMV(){
   return {
-    count: 8,
-    month: { text:'JANUAR 2026', font:'Anton', size:3, color:'#1A1A1A', posX:3, posY:3 },
-    barLeft:  { text:'HEIM',     bg:'#C8102E', fg:'#FFFFFF', font:'Anton', size:3 },
-    barRight: { text:'AUSWÄRTS', bg:'#E6BB4D', fg:'#1A1A1A', font:'Anton', size:3 },
+    count: 6,                                   // Smart Default: 6 Spiele
+    month: { text:'JANUAR 2026', font:'Anton', size:4, color:'#1A1A1A', posX:3, posY:3 },
+    barLeft:  { text:'HOME', bg:'#C8102E', fg:'#FFFFFF', font:'Anton', size:4 },   // rot / weiß
+    barRight: { text:'AWAY', bg:'#0D0D0D', fg:'#FFFFFF', font:'Anton', size:4 },   // schwarz / weiß
     club: { size:3, posX:3, posY:3, opacity:100, shadow:false },
     bgType: 'solid',          // solid | gradient | image
     bgColor: '#F3ECDA',
     bgColor2:'#E6D6AC',
-    player: { size:3, posX:4, posY:5, opacity:100, behind:false },
     tiles: Array.from({length:MV_TILE_MAX}, defaultMVTile)
   };
 }
 let MV = defaultMV();
 // Laufzeit-Bildcaches (dekodierte Images) + zugehörige Quell-Datenstrings (für Entwürfe)
-const mvImg = { bg:null, player:null, club:null, opp:Array(MV_TILE_MAX).fill(null), comp:Array(MV_TILE_MAX).fill(null) };
-const mvSrc = { bg:'', player:'', club:'', opp:Array(MV_TILE_MAX).fill(''), comp:Array(MV_TILE_MAX).fill('') };
+const mvImg = { bg:null, club:null, opp:Array(MV_TILE_MAX).fill(null), comp:Array(MV_TILE_MAX).fill(null) };
+const mvSrc = { bg:'', club:'', opp:Array(MV_TILE_MAX).fill(''), comp:Array(MV_TILE_MAX).fill('') };
 
 const FORMATIONS = {
   '4-4-2':[1,4,4,2],
@@ -2787,6 +2797,16 @@ function mvFitCenter(text, cx, y, maxW, basePx, fontFamily, color, weight){
   ctx.textAlign='left';
   return px;
 }
+function mvFitRight(text, rightX, y, maxW, basePx, fontFamily, color, weight){
+  let px = basePx;
+  ctx.font = `${weight||400} ${px}px "${fontFamily}", sans-serif`;
+  let w = ctx.measureText(text).width;
+  if(w > maxW && w>0){ px = px * (maxW/w); ctx.font = `${weight||400} ${px}px "${fontFamily}", sans-serif`; }
+  ctx.fillStyle = color; ctx.textAlign='right';
+  ctx.fillText(text, rightX, y);
+  ctx.textAlign='left';
+  return px;
+}
 function drawMonatsvorschau(scale, W, H){
   // --- Hintergrund (deckt gesamte Fläche, damit Export = Vorschau) ---
   if(MV.bgType==='image' && mvImg.bg){
@@ -2802,15 +2822,14 @@ function drawMonatsvorschau(scale, W, H){
   const count = Math.max(1, Math.min(MV_TILE_MAX, MV.count));
   const clubImg = mvImg.club || state.home;
 
-  // Spielerbild optional HINTER dem Raster
-  if(mvImg.player && MV.player.behind) drawMVPlayer(scale, W, H);
+  const marginX = 66, gutterX = 24, gutterY = 24;
 
-  // --- Vereinslogo oben mittig ---
+  // --- Vereinslogo oben (Kopfbereich, mittig) ---
   if(clubImg){
-    const cs = MV.club.size, sizeF = mvVal(MV_CLUBSIZE, cs);
+    const sizeF = mvVal(MV_CLUBSIZE, MV.club.size);
     const logoH = 150*sizeF*scale;
     const cx = 540 + mvVal(MV_POS, MV.club.posX)*160;
-    const topY = (70 + mvVal(MV_POS, MV.club.posY)*70)*scale;
+    const topY = (60 + mvVal(MV_POS, MV.club.posY)*70)*scale;
     ctx.save();
     ctx.globalAlpha = Math.max(0, Math.min(1, MV.club.opacity/100));
     if(MV.club.shadow){ ctx.shadowColor='rgba(0,0,0,0.35)'; ctx.shadowBlur=18*scale; ctx.shadowOffsetY=6*scale; }
@@ -2818,63 +2837,56 @@ function drawMonatsvorschau(scale, W, H){
     ctx.restore();
   }
 
-  // --- Monatsüberschrift ---
+  // --- Kopfzeile: Home/Away-Leiste linksbündig + Monat oben rechts ---
+  const headerCenterY = 405*scale;
+  // Monat rechtsbündig
   const mMonth = MV.month;
-  const monthY = (330 + mvVal(MV_POS, mMonth.posY)*80)*scale;
-  const monthCX = 540 + mvVal(MV_POS, mMonth.posX)*180;
-  const monthPx = 104 * mvVal(MV_MONTHSIZE, mMonth.size) * scale;
+  const monthPx = 116 * mvVal(MV_MONTHSIZE, mMonth.size) * scale;
+  const monthRight = (1080 - marginX) + mvVal(MV_POS, mMonth.posX)*120;
+  const monthY = headerCenterY + monthPx*0.34 + mvVal(MV_POS, mMonth.posY)*70*scale;
   ctx.textBaseline='alphabetic';
-  mvFitCenter(String(mMonth.text||'').toUpperCase(), monthCX, monthY, 940*scale, monthPx, mMonth.font, mMonth.color, 400);
+  mvFitRight(String(mMonth.text||'').toUpperCase(), monthRight, monthY, 620*scale, monthPx, mMonth.font, mMonth.color, 400);
+  // Leiste links, oberhalb der ersten Kachel, deutlich größer
+  drawMVBar(scale, marginX, headerCenterY);
 
-  // --- Home/Away-Leiste (zwei frei belegbare Felder) ---
-  drawMVBar(scale, (400 + mvVal(MV_POS, mMonth.posY)*80)*scale);
-
-  // --- Raster ---
-  const marginX = 66, gutterX = 24, gutterY = 24;
+  // --- Raster (immer links→rechts, dann oben→unten; feste 3 Spalten, keine Platzhalter) ---
   const rows = Math.ceil(count/3);
   const tileW = (1080 - 2*marginX - 2*gutterX)/3;
-  const gridTop = 500*scale, gridBottom = 1885*scale, gridH = gridBottom - gridTop;
+  const gridTop = 520*scale, gridBottom = 1885*scale, gridH = gridBottom - gridTop;
   const maxTileH = (gridH - (rows-1)*gutterY*scale)/rows;
   const tileH = Math.min(tileW*1.16*scale, maxTileH);
   const blockH = rows*tileH + (rows-1)*gutterY*scale;
   const startY = gridTop + (gridH - blockH)/2;
 
   for(let i=0;i<count;i++){
-    const row = Math.floor(i/3);
-    const inRow = Math.min(3, count - row*3);           // Kacheln in dieser Reihe
-    const posInRow = i - row*3;
-    const rowW = inRow*tileW + (inRow-1)*gutterX;
-    const rowStartX = (1080 - rowW)/2;                  // letzte Reihe zentriert → keine Lücken
-    const x = rowStartX + posInRow*(tileW+gutterX);
+    const col = i%3, row = Math.floor(i/3);
+    const x = marginX + col*(tileW + gutterX);          // feste Spalten, linksbündig
     const y = startY + row*(tileH + gutterY*scale);
     drawMVTile(x, y, tileW, tileH, MV.tiles[i], mvImg.opp[i], mvImg.comp[i], scale);
   }
-
-  // Spielerbild optional VOR dem Raster
-  if(mvImg.player && !MV.player.behind) drawMVPlayer(scale, W, H);
 }
-function drawMVBar(scale, y){
+function drawMVBar(scale, leftX, centerY){
   const bl=MV.barLeft, br=MV.barRight;
-  const barH = 60 * mvVal(MV_BARSIZE, bl.size) * scale;
-  const padX = 26*scale, gap = 6*scale;
+  const barH = 82 * mvVal(MV_BARSIZE, bl.size) * scale;
+  const padX = 30*scale, gap = 7*scale;
+  const lPx = 34*mvVal(MV_BARSIZE,bl.size)*scale, rPx = 34*mvVal(MV_BARSIZE,br.size)*scale;
+  const y = centerY - barH/2;
   ctx.textBaseline='middle';
-  const lPx = 26*mvVal(MV_BARSIZE,bl.size)*scale, rPx = 26*mvVal(MV_BARSIZE,br.size)*scale;
   ctx.font = `400 ${lPx}px "${bl.font}", sans-serif`;
   const lTextW = ctx.measureText(String(bl.text||'').toUpperCase()).width;
   ctx.font = `400 ${rPx}px "${br.font}", sans-serif`;
   const rTextW = ctx.measureText(String(br.text||'').toUpperCase()).width;
   const lW = lTextW + padX*2, rW = rTextW + padX*2;
-  const totalW = lW + rW + gap;
-  let x = 540 - totalW/2;
+  let x = leftX;   // linksbündig
   // linkes Feld
-  roundRectPathSides(ctx, x, y, lW, barH, barH*0.28, 0); ctx.fillStyle=bl.bg; ctx.fill();
+  roundRectPathSides(ctx, x, y, lW, barH, barH*0.24, 0); ctx.fillStyle=bl.bg; ctx.fill();
   ctx.font = `400 ${lPx}px "${bl.font}", sans-serif`; ctx.fillStyle=bl.fg; ctx.textAlign='center';
-  ctx.fillText(String(bl.text||'').toUpperCase(), x+lW/2, y+barH/2 + lPx*0.04);
+  ctx.fillText(String(bl.text||'').toUpperCase(), x+lW/2, centerY + lPx*0.04);
   x += lW + gap;
   // rechtes Feld
-  roundRectPathSides(ctx, x, y, rW, barH, 0, barH*0.28); ctx.fillStyle=br.bg; ctx.fill();
+  roundRectPathSides(ctx, x, y, rW, barH, 0, barH*0.24); ctx.fillStyle=br.bg; ctx.fill();
   ctx.font = `400 ${rPx}px "${br.font}", sans-serif`; ctx.fillStyle=br.fg;
-  ctx.fillText(String(br.text||'').toUpperCase(), x+rW/2, y+barH/2 + rPx*0.04);
+  ctx.fillText(String(br.text||'').toUpperCase(), x+rW/2, centerY + rPx*0.04);
   ctx.textAlign='left'; ctx.textBaseline='alphabetic';
 }
 function drawMVTile(x, y, w, h, tile, oppImg, compImg, scale){
@@ -2916,20 +2928,6 @@ function drawMVTile(x, y, w, h, tile, oppImg, compImg, scale){
     mvFitCenter(textLine, x+w/2, textBaseY, inW, textPx, 'Anton', tile.fg, 400);
   }
 }
-function drawMVPlayer(scale, W, H){
-  const img=mvImg.player; if(!img) return;
-  const sizeF = mvVal(MV_PLAYERSIZE, MV.player.size);
-  const targetH = 900 * sizeF * scale;
-  const ar = img.width/img.height;
-  const targetW = targetH*ar;
-  const cx = 540 + mvVal(MV_POS, MV.player.posX)*320;
-  const bottomY = (1920 + mvVal(MV_POS, MV.player.posY)*260)*scale;
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, MV.player.opacity/100));
-  ctx.drawImage(img, cx-targetW/2, bottomY-targetH, targetW, targetH);
-  ctx.restore();
-}
-
 /* ===================== Monatsvorschau — Sidebar-UI ===================== */
 function mvEl(tag, props, kids){
   const e=document.createElement(tag);
@@ -3009,24 +3007,70 @@ function mvSection(title, openByDefault, bodyKids){
 function mvGrid2(kids){ return mvEl('div',{class:'mv-grid2'}, kids); }
 function mvField(labelText, control){ return mvEl('div',null,[mvLabel(labelText), control]); }
 
+// Karten inkl. Bildern gemeinsam umsortieren (ganze Objekte wandern mit)
+function mvReorder(from, to){
+  if(from===to || from<0 || to<0 || from>=MV.count || to>=MV.count) return;
+  const mv=(arr)=>{ const x=arr.splice(from,1)[0]; arr.splice(to,0,x); };
+  mv(MV.tiles); mv(mvImg.opp); mv(mvImg.comp); mv(mvSrc.opp); mv(mvSrc.comp);
+  renderMVPanel(); draw();
+}
+function mvSwap(i, j){
+  if(j<0 || j>=MV.count || i===j) return;
+  const sw=(arr)=>{ const t=arr[i]; arr[i]=arr[j]; arr[j]=t; };
+  sw(MV.tiles); sw(mvImg.opp); sw(mvImg.comp); sw(mvSrc.opp); sw(mvSrc.comp);
+  renderMVPanel(); draw();
+}
+// Design (nicht Datum/Uhrzeit/Logos) einer Karte auf alle übernehmen
+function mvApplyDesignToAll(i){
+  const s=MV.tiles[i];
+  MV.tiles.forEach((t,idx)=>{ if(idx===i) return; t.bg=s.bg; t.fg=s.fg; t.logoSize=s.logoSize; t.logoPos=s.logoPos; t.gap=s.gap; t.pad=s.pad; });
+  renderMVPanel(); draw();
+}
+function mvArrowBtn(label, title, fn){
+  const b=mvEl('button',{type:'button', class:'mv-arrow', title},[label]);
+  b.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); fn(); });
+  return b;
+}
+
 function renderMVPanel(){
   const root=document.getElementById('mvPanel'); if(!root) return;
   root.innerHTML='';
 
-  // --- Allgemein: Anzahl Spiele ---
-  const countLabel=mvEl('div',{class:'step-lbl'},[mvEl('label',{style:'margin:0;'},['Anzahl Spiele']), mvEl('span',{class:'step-ends'},['1 – 9'])]);
+  // 1) SPIELANZAHL — ganz oben, ein Klick
   const countSeg=mvEl('div',{class:'mv-seg', style:'flex-wrap:wrap;'});
   for(let n=1;n<=9;n++){
-    const b=mvEl('button',{type:'button', style:'flex:1 1 18%;'},[String(n)]);
+    const b=mvEl('button',{type:'button', style:'flex:1 1 16%;'},[String(n)]);
     if(MV.count===n) b.classList.add('active');
     b.addEventListener('click',()=>{ MV.count=n; renderMVPanel(); draw(); });
     countSeg.appendChild(b);
   }
-  root.appendChild(mvSection('Allgemein', true, [countLabel, countSeg,
-    mvEl('div',{class:'hint', style:'margin-top:6px;'},['Nicht sichtbare Kacheln verschwinden automatisch – das Raster richtet sich sauber neu aus.'])
+  root.appendChild(mvSection('Spielanzahl', true, [
+    mvEl('div',{class:'hint', style:'margin:0 0 6px;'},['Wie viele Spiele? Nicht benötigte Karten verschwinden automatisch.']),
+    countSeg
   ]));
 
-  // --- Monat ---
+  // 2) SPIELE — die Karten (offen, meistgenutzt)
+  const tilesBody=[];
+  for(let i=0;i<MV.count;i++) tilesBody.push(mvBuildTileEditor(i));
+  tilesBody.push(mvEl('div',{class:'hint', style:'margin-top:2px;'},['Karten per Ziehen oder mit ◀ ▶ ▲ ▼ umsortieren. „Design auf alle Karten übernehmen“ vereinheitlicht Farben & Abstände.']));
+  root.appendChild(mvSection('Spiele', true, tilesBody));
+
+  // 3) HOME/AWAY
+  const bl=MV.barLeft, br=MV.barRight;
+  root.appendChild(mvSection('Home/Away-Leiste', false, [
+    mvEl('div',{class:'line-caption'},['Linkes Feld']),
+    mvField('Text', mvTextInput(bl.text, v=>bl.text=v, 'HOME')),
+    mvField('Schriftart', mvFontSelect(bl.font, v=>bl.font=v)),
+    mvGrid2([ mvField('Hintergrund', mvColorInput(bl.bg, v=>bl.bg=v)), mvField('Schrift', mvColorInput(bl.fg, v=>bl.fg=v)) ]),
+    mvField('Schriftgröße', mvSeg(bl.size, v=>bl.size=v)),
+    mvEl('div',{class:'line-caption', style:'margin-top:10px;'},['Rechtes Feld']),
+    mvField('Text', mvTextInput(br.text, v=>br.text=v, 'AWAY')),
+    mvField('Schriftart', mvFontSelect(br.font, v=>br.font=v)),
+    mvGrid2([ mvField('Hintergrund', mvColorInput(br.bg, v=>br.bg=v)), mvField('Schrift', mvColorInput(br.fg, v=>br.fg=v)) ]),
+    mvField('Schriftgröße', mvSeg(br.size, v=>br.size=v))
+  ]));
+
+  // 4) MONAT
   const m=MV.month;
   root.appendChild(mvSection('Monat', false, [
     mvField('Text', mvTextInput(m.text, v=>m.text=v, 'JANUAR 2026')),
@@ -3035,77 +3079,67 @@ function renderMVPanel(){
     mvGrid2([ mvField('Position ↔', mvSeg(m.posX, v=>m.posX=v)), mvField('Position ↕', mvSeg(m.posY, v=>m.posY=v)) ])
   ]));
 
-  // --- Home/Away-Leiste ---
-  const bl=MV.barLeft, br=MV.barRight;
-  root.appendChild(mvSection('Home/Away-Leiste', false, [
-    mvEl('div',{class:'line-caption'},['Linkes Feld']),
-    mvField('Text', mvTextInput(bl.text, v=>bl.text=v, 'HEIM')),
-    mvField('Schriftart', mvFontSelect(bl.font, v=>bl.font=v)),
-    mvGrid2([ mvField('Hintergrund', mvColorInput(bl.bg, v=>bl.bg=v)), mvField('Schrift', mvColorInput(bl.fg, v=>bl.fg=v)) ]),
-    mvField('Schriftgröße', mvSeg(bl.size, v=>bl.size=v)),
-    mvEl('div',{class:'line-caption', style:'margin-top:10px;'},['Rechtes Feld']),
-    mvField('Text', mvTextInput(br.text, v=>br.text=v, 'AUSWÄRTS')),
-    mvField('Schriftart', mvFontSelect(br.font, v=>br.font=v)),
-    mvGrid2([ mvField('Hintergrund', mvColorInput(br.bg, v=>br.bg=v)), mvField('Schrift', mvColorInput(br.fg, v=>br.fg=v)) ]),
-    mvField('Schriftgröße', mvSeg(br.size, v=>br.size=v))
-  ]));
-
-  // --- Vereinslogo ---
+  // 5) ALLGEMEIN — Vereinslogo + Hintergrund
   const cl=MV.club;
-  root.appendChild(mvSection('Vereinslogo', false, [
-    mvUploadMini('Logo wählen…', mvSrc.club, 'home', (data,img)=>{ mvSrc.club=data; mvImg.club=img; }, ()=>{ mvSrc.club=''; mvImg.club=null; }),
-    mvEl('div',{class:'hint', style:'margin:4px 0;'},['Ohne eigenes Logo wird automatisch das Heim-Team-Logo aus dem Bereich „Logos“ verwendet.']),
-    mvGrid2([ mvField('Größe', mvSeg(cl.size, v=>cl.size=v)), mvField('Transparenz %', (()=>{ const i=mvEl('input',{type:'number', value:cl.opacity, min:0, max:100}); i.addEventListener('input',e=>{ cl.opacity=Number(e.target.value); draw(); }); return i; })()) ]),
-    mvGrid2([ mvField('Position ↔', mvSeg(cl.posX, v=>cl.posX=v)), mvField('Position ↕', mvSeg(cl.posY, v=>cl.posY=v)) ]),
-    mvCheck('Schatten anzeigen', cl.shadow, v=>cl.shadow=v)
-  ]));
-
-  // --- Hintergrund ---
   const bgSeg=mvEl('div',{class:'mv-seg'});
   [['solid','Vollton'],['gradient','Verlauf'],['image','Bild']].forEach(([val,lbl])=>{
     const b=mvEl('button',{type:'button'},[lbl]); if(MV.bgType===val) b.classList.add('active');
     b.addEventListener('click',()=>{ MV.bgType=val; bgSeg.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); draw(); });
     bgSeg.appendChild(b);
   });
-  root.appendChild(mvSection('Hintergrund', false, [
+  root.appendChild(mvSection('Vereinslogo & Hintergrund', false, [
+    mvEl('div',{class:'line-caption'},['Vereinslogo']),
+    mvUploadMini('Logo wählen…', mvSrc.club, 'home', (data,img)=>{ mvSrc.club=data; mvImg.club=img; }, ()=>{ mvSrc.club=''; mvImg.club=null; }),
+    mvEl('div',{class:'hint', style:'margin:4px 0;'},['Ohne eigenes Logo wird automatisch das Heim-Team-Logo aus dem Bereich „Logos“ verwendet.']),
+    mvGrid2([ mvField('Größe', mvSeg(cl.size, v=>cl.size=v)), mvField('Transparenz %', (()=>{ const i=mvEl('input',{type:'number', value:cl.opacity, min:0, max:100}); i.addEventListener('input',e=>{ cl.opacity=Number(e.target.value); draw(); }); return i; })()) ]),
+    mvGrid2([ mvField('Position ↔', mvSeg(cl.posX, v=>cl.posX=v)), mvField('Position ↕', mvSeg(cl.posY, v=>cl.posY=v)) ]),
+    mvCheck('Schatten anzeigen', cl.shadow, v=>cl.shadow=v),
+    mvEl('div',{class:'line-caption', style:'margin-top:12px;'},['Hintergrund']),
     mvField('Typ', bgSeg),
     mvGrid2([ mvField('Farbe', mvColorInput(MV.bgColor, v=>MV.bgColor=v)), mvField('Farbe 2 (Verlauf)', mvColorInput(MV.bgColor2, v=>MV.bgColor2=v)) ]),
     mvField('Hintergrundbild', mvUploadMini('Bild wählen…', mvSrc.bg, 'bg', (data,img)=>{ mvSrc.bg=data; mvImg.bg=img; MV.bgType='image'; renderMVPanel(); }, ()=>{ mvSrc.bg=''; mvImg.bg=null; }))
   ]));
 
-  // --- Spielerbild ---
-  const pl=MV.player;
-  root.appendChild(mvSection('Spielerbild (optional)', false, [
-    mvUploadMini('Freigestelltes Foto wählen…', mvSrc.player, 'player-lineup', (data,img)=>{ mvSrc.player=data; mvImg.player=img; }, ()=>{ mvSrc.player=''; mvImg.player=null; }),
-    mvGrid2([ mvField('Größe', mvSeg(pl.size, v=>pl.size=v)), mvField('Transparenz %', (()=>{ const i=mvEl('input',{type:'number', value:pl.opacity, min:0, max:100}); i.addEventListener('input',e=>{ pl.opacity=Number(e.target.value); draw(); }); return i; })()) ]),
-    mvGrid2([ mvField('Position ↔', mvSeg(pl.posX, v=>pl.posX=v)), mvField('Position ↕', mvSeg(pl.posY, v=>pl.posY=v)) ]),
-    mvCheck('Hinter dem Raster anzeigen (Ebene)', pl.behind, v=>pl.behind=v)
-  ]));
-
-  // --- Spielkacheln ---
-  const tilesBody=[];
-  for(let i=0;i<MV.count;i++){
-    tilesBody.push(mvBuildTileEditor(i));
-  }
-  root.appendChild(mvSection('Spielkacheln', true, tilesBody.length?tilesBody:[mvEl('div',{class:'hint'},['Keine Kacheln.'])]));
+  // 6) EXPORT-Hinweis
+  root.appendChild(mvEl('div',{class:'hint', style:'margin-top:4px;'},['Fertig? Unten mit „PNG herunterladen“ exportieren – exakt wie in der Vorschau.']));
 }
 function mvBuildTileEditor(i){
   const t=MV.tiles[i];
   const swatch=mvEl('span',{class:'mv-swatch', style:`background:${t.bg};`});
-  const sum=mvEl('summary',null,[swatch, `Spiel ${i+1}`]);
+  const arrows=mvEl('span',{class:'mv-arrows'},[
+    mvArrowBtn('◀','Nach links', ()=>{ if(i%3>0) mvSwap(i,i-1); }),
+    mvArrowBtn('▶','Nach rechts', ()=>{ if(i%3<2 && i+1<MV.count) mvSwap(i,i+1); }),
+    mvArrowBtn('▲','Nach oben', ()=>mvSwap(i,i-3)),
+    mvArrowBtn('▼','Nach unten', ()=>mvSwap(i,i+3))
+  ]);
+  const sum=mvEl('summary',{draggable:'true'},[swatch, mvEl('span',{style:'flex:1;'},[`Spiel ${i+1}`]), arrows]);
+  sum.addEventListener('dragstart', e=>{ e.dataTransfer.setData('text/plain', String(i)); e.dataTransfer.effectAllowed='move'; sum.closest('.mv-tile').classList.add('mv-dragging'); });
+  sum.addEventListener('dragend', ()=>{ const el=sum.closest('.mv-tile'); if(el) el.classList.remove('mv-dragging'); });
+  sum.addEventListener('dragover', e=>{ e.preventDefault(); e.dataTransfer.dropEffect='move'; });
+  sum.addEventListener('drop', e=>{ e.preventDefault(); const from=Number(e.dataTransfer.getData('text/plain')); if(!isNaN(from)) mvReorder(from, i); });
+
+  const fine=mvEl('details',{class:'mv-fine'},[
+    mvEl('summary',null,['Feineinstellung: Logo & Abstände']),
+    mvGrid2([ mvField('Logo-Größe', mvSeg(t.logoSize, v=>t.logoSize=v)), mvField('Logo-Position ↕', mvSeg(t.logoPos, v=>t.logoPos=v)) ]),
+    mvGrid2([ mvField('Abstand Elemente', mvSeg(t.gap, v=>t.gap=v)), mvField('Innenabstand', mvSeg(t.pad, v=>t.pad=v)) ])
+  ]);
+  const applyBtn=mvEl('button',{type:'button', class:'mv-applyall'},['⧉ Design auf alle Karten übernehmen']);
+  applyBtn.addEventListener('click',()=>mvApplyDesignToAll(i));
+
   const body=mvEl('div',{class:'mv-tile-body'},[
-    mvField('Gegnerlogo', mvUploadMini('Logo wählen…', mvSrc.opp[i], 'home', (data,img)=>{ mvSrc.opp[i]=data; mvImg.opp[i]=img; }, ()=>{ mvSrc.opp[i]=''; mvImg.opp[i]=null; })),
-    mvField('Wettbewerbslogo (optional)', mvUploadMini('Logo wählen…', mvSrc.comp[i], 'home', (data,img)=>{ mvSrc.comp[i]=data; mvImg.comp[i]=img; }, ()=>{ mvSrc.comp[i]=''; mvImg.comp[i]=null; })),
+    mvGrid2([
+      mvField('Gegnerlogo', mvUploadMini('Logo…', mvSrc.opp[i], 'home', (data,img)=>{ mvSrc.opp[i]=data; mvImg.opp[i]=img; }, ()=>{ mvSrc.opp[i]=''; mvImg.opp[i]=null; })),
+      mvField('Wettbewerbslogo', mvUploadMini('optional', mvSrc.comp[i], 'home', (data,img)=>{ mvSrc.comp[i]=data; mvImg.comp[i]=img; }, ()=>{ mvSrc.comp[i]=''; mvImg.comp[i]=null; }))
+    ]),
     mvGrid2([ mvField('Datum', mvTextInput(t.date, v=>t.date=v, 'JAN 5')), mvField('Uhrzeit', mvTextInput(t.time, v=>t.time=v, '16:30')) ]),
     mvGrid2([
       mvField('Hintergrundfarbe', mvColorInput(t.bg, v=>{ t.bg=v; swatch.style.background=v; })),
       mvField('Textfarbe', mvColorInput(t.fg, v=>t.fg=v))
     ]),
-    mvGrid2([ mvField('Logo-Größe', mvSeg(t.logoSize, v=>t.logoSize=v)), mvField('Logo-Position ↕', mvSeg(t.logoPos, v=>t.logoPos=v)) ]),
-    mvGrid2([ mvField('Abstand Elemente', mvSeg(t.gap, v=>t.gap=v)), mvField('Innenabstand', mvSeg(t.pad, v=>t.pad=v)) ])
+    fine,
+    applyBtn
   ]);
-  const d=mvEl('details',{class:'mv-tile'},[sum, body]);
-  return d;
+  return mvEl('details',{class:'mv-tile'},[sum, body]);
 }
 
 function applyTabVisibility(){
@@ -3613,17 +3647,15 @@ async function applyState(data){
     MV.barLeft = Object.assign(defaultMV().barLeft, s.barLeft||{});
     MV.barRight = Object.assign(defaultMV().barRight, s.barRight||{});
     MV.club = Object.assign(defaultMV().club, s.club||{});
-    MV.player = Object.assign(defaultMV().player, s.player||{});
     MV.tiles = [];
     for(let i=0;i<MV_TILE_MAX;i++){ MV.tiles[i] = Object.assign(defaultMVTile(), (s.tiles&&s.tiles[i])||{}); }
     // Bilder zurücksetzen und aus gespeicherten Quellen neu laden
-    mvImg.bg=null; mvImg.player=null; mvImg.club=null;
+    mvImg.bg=null; mvImg.club=null;
     for(let i=0;i<MV_TILE_MAX;i++){ mvImg.opp[i]=null; mvImg.comp[i]=null; mvSrc.opp[i]=''; mvSrc.comp[i]=''; }
-    mvSrc.bg=''; mvSrc.player=''; mvSrc.club='';
+    mvSrc.bg=''; mvSrc.club='';
     const src = data.mv.src || {};
     const loadMV=(dataUrl, assign)=>{ if(!dataUrl) return; const im=new Image(); im.onload=()=>{ assign(im); draw(); }; im.src=dataUrl; };
     if(src.bg){ mvSrc.bg=src.bg; loadMV(src.bg, im=>mvImg.bg=im); }
-    if(src.player){ mvSrc.player=src.player; loadMV(src.player, im=>mvImg.player=im); }
     if(src.club){ mvSrc.club=src.club; loadMV(src.club, im=>mvImg.club=im); }
     if(Array.isArray(src.opp)) src.opp.forEach((u,i)=>{ if(u){ mvSrc.opp[i]=u; loadMV(u, im=>mvImg.opp[i]=im); } });
     if(Array.isArray(src.comp)) src.comp.forEach((u,i)=>{ if(u){ mvSrc.comp[i]=u; loadMV(u, im=>mvImg.comp[i]=im); } });
