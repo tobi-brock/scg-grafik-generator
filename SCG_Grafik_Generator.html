@@ -353,23 +353,25 @@
 
   <fieldset id="bgField">
     <legend>Hintergrund</legend>
-    <div class="logo-row">
-      <label class="upload">
-        <div class="thumb" id="thumb-bg"></div>
-        <span class="upload-label" id="label-bg">Bild wählen…</span>
-        <input type="file" id="file-bg" accept="image/*">
-      </label>
-      <button type="button" class="lib-btn" data-target="bg" data-cat="hintergruende" title="Aus Bibliothek wählen">📚</button>
-      <button type="button" class="logo-clear" id="clear-bg" title="Bild entfernen">✕</button>
+    <div id="bgPhotoControls">
+      <div class="logo-row">
+        <label class="upload">
+          <div class="thumb" id="thumb-bg"></div>
+          <span class="upload-label" id="label-bg">Bild wählen…</span>
+          <input type="file" id="file-bg" accept="image/*">
+        </label>
+        <button type="button" class="lib-btn" data-target="bg" data-cat="hintergruende" title="Aus Bibliothek wählen">📚</button>
+        <button type="button" class="logo-clear" id="clear-bg" title="Bild entfernen">✕</button>
+      </div>
+      <label>Bildgröße</label>
+      <div class="step-seg" data-step="bgSize"></div>
+      <div class="step-lbl"><label style="margin:0;">Bild horizontal</label><span class="step-ends">1 links · 5 rechts</span></div>
+      <div class="step-seg" data-step="bgOffset"></div>
+      <div class="step-lbl"><label style="margin:0;">Bild vertikal</label><span class="step-ends">1 oben · 5 unten</span></div>
+      <div class="step-seg" data-step="bgVPos"></div>
     </div>
     <label style="margin-top:12px;">Abdunklung <span class="range-val" id="val-overlay">55%</span></label>
     <input type="range" id="overlay" min="1" max="100" value="55">
-    <label>Bildgröße</label>
-    <div class="step-seg" data-step="bgSize"></div>
-    <div class="step-lbl"><label style="margin:0;">Bild horizontal</label><span class="step-ends">1 links · 5 rechts</span></div>
-    <div class="step-seg" data-step="bgOffset"></div>
-    <div class="step-lbl"><label style="margin:0;">Bild vertikal</label><span class="step-ends">1 oben · 5 unten</span></div>
-    <div class="step-seg" data-step="bgVPos"></div>
   </fieldset>
 
   <fieldset id="logosField">
@@ -443,7 +445,10 @@
     </select>
     </div>
 
-    <div id="opponentNameField" class="match-only">
+    <!-- Nur beim Ergebnis relevant (Fallback-Text, falls kein Logo hochgeladen ist).
+         Matchday/Pokal zeigen ausschließlich Logos (bzw. einen neutralen Platzhalter) — dort
+         wird kein Mannschaftsname mehr eingeblendet. -->
+    <div id="opponentNameField">
       <label>Heim-Team-Name (Fallback, falls kein Logo hochgeladen)</label>
       <input type="text" id="homeTeamName" value="SC GRIMLINGHAUSEN 1936">
       <label>Auswärts-Team-Name (Fallback, falls kein Logo hochgeladen)</label>
@@ -1620,7 +1625,8 @@ function draw(){
   const isPokal = activeTab==='pokal';
 
   if(activeTab!=='lineup'){
-    if(state.bg){
+    // Pokal nutzt bewusst kein Hintergrundbild mehr (eigene Gold/Nacht-Farbwelt statt Foto).
+    if(state.bg && !isPokal){
       drawImageZoomPan(ctx,state.bg,0,0,W,H, sv('bgSize'), sv('bgOffset'), sv('bgVPos'));
     } else { ctx.fillStyle = COLORS.black; ctx.fillRect(0,0,W,H); }
 
@@ -1833,7 +1839,7 @@ function drawHeadline(text,scale,color,showBadge){
     drawHomeAwayCorner(scale, 540, y, r.size, r.width);
   }
 }
-function drawLogoRow(scale,oppName){
+function drawLogoRow(scale){
   const homeSize = sv('homeLogoSize') * scale;
   const awaySize = sv('awayLogoSize') * scale;
   const boxY=(700+LEVELS.mitte)*scale;
@@ -1972,7 +1978,7 @@ function drawMatchday(scale,headlineColor,secondaryColor,topShift,botShift){
   // UNTERER Block: Logos, Namen, Datum, Uhrzeit, Adresse, Schiri
   ctx.save();
   if(botShift) ctx.translate(0, botShift);
-  const logoBottom = drawLogoRow(scale, document.getElementById('opponentName').value);
+  const logoBottom = drawLogoRow(scale);
   const infoY = logoBottom + (300+LEVELS.info)*scale;
   drawInfoBlock(scale, infoY, secondaryColor, document.getElementById('md-infolayout').value,
     {day:'md-day', time:'md-time', venue:'md-venue', address:'md-address', referee:'md-referee'});
@@ -2124,7 +2130,7 @@ function drawPokal(scale,headlineColor,secondaryColor,topShift,midShift,botShift
 
   // MITTLERER Bereich: Logos / Paarung
   ctx.save(); if(midShift) ctx.translate(0, midShift);
-  const logoBottom = drawLogoRow(scale, document.getElementById('opponentName').value);
+  const logoBottom = drawLogoRow(scale);
   ctx.restore();
 
   // UNTERER Bereich: Datum, Uhrzeit, Adresse — gleiche Info-Layouts wie Matchday
@@ -3147,10 +3153,17 @@ function applyTabVisibility(){
   document.getElementById('logosField').style.display = (activeTab==='neuzugang') ? 'none' : 'block';
   // Aufstellung nutzt einen festen 3D-Platz — globaler Bild-Upload überflüssig
   document.getElementById('bgField').style.display = (activeTab==='lineup') ? 'none' : 'block';
+  // Pokal nutzt keine Hintergrundfoto-Steuerung mehr (eigene Gold/Nacht-Farbwelt) — nur Abdunklung bleibt
+  const bgPhoto = document.getElementById('bgPhotoControls');
+  if(bgPhoto) bgPhoto.style.display = (activeTab==='pokal') ? 'none' : '';
   // Große Logo-/X-Größen gelten nur für Matchday/Ergebnis/Pokal — in der Aufstellung ausblenden
   document.querySelectorAll('.match-only').forEach(el=>{
     el.style.display = (activeTab==='lineup') ? 'none' : '';
   });
+  // Heim-/Auswärts-Namensfelder: nur beim Ergebnis genutzt (Fallback-Text ohne Logo).
+  // Matchday/Pokal zeigen ausschließlich Logos bzw. einen neutralen Platzhalter — kein Textname.
+  const oppNameFld = document.getElementById('opponentNameField');
+  if(oppNameFld) oppNameFld.style.display = (activeTab==='ergebnis') ? 'block' : 'none';
   // Farbe der Begegnungszeile nur beim Ergebnis relevant
   const tnc = document.getElementById('teamNameColorField');
   if(tnc) tnc.style.display = (activeTab==='ergebnis') ? 'block' : 'none';
@@ -3307,6 +3320,79 @@ document.getElementById('file-luBg').addEventListener('change', ()=>{
   // draw() folgt aus dem generischen loadFile-Handler
 });
 
+/* ==================== Bild-Speicher (IndexedDB) ====================
+   Ursache des "Speicher voll"-Fehlers: Jedes hochgeladene Bild wurde bisher als
+   volle Base64-Zeichenkette in JEDEM Entwurf UND in der Asset-Bibliothek einzeln
+   in localStorage abgelegt — dasselbe Logo also mehrfach dupliziert. localStorage
+   hat nur ein sehr kleines Limit (meist ~5–10 MB je Ursprung).
+
+   Neue Strategie: Bilddaten werden GENAU EINMAL in IndexedDB abgelegt, adressiert
+   über einen Hash ihres Inhalts (identisches Bild in 5 Entwürfen + 2 Assets =
+   trotzdem nur 1 gespeicherte Kopie). IndexedDB hat ein deutlich größeres
+   Kontingent (üblicherweise mehrere hundert MB) und ist genau dafür gedacht.
+   localStorage speichert ab jetzt nur noch die paar Bytes lange Hash-Referenz
+   statt der Bilddaten selbst.
+
+   Abwärtskompatibilität: Ältere Entwürfe/Assets, die noch echte data:-URLs
+   enthalten, funktionieren unverändert weiter (resolveImageRef erkennt das
+   Altformat automatisch) — kein manueller Migrationsschritt nötig. */
+const IMG_DB_NAME = 'scg_image_store_v1';
+const IMG_STORE = 'images';
+let _imgDbPromise = null;
+function openImageDB(){
+  if(_imgDbPromise) return _imgDbPromise;
+  _imgDbPromise = new Promise((resolve, reject)=>{
+    if(!window.indexedDB){ reject(new Error('IndexedDB nicht verfügbar')); return; }
+    const req = indexedDB.open(IMG_DB_NAME, 1);
+    req.onupgradeneeded = ()=>{ req.result.createObjectStore(IMG_STORE); };
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error);
+  });
+  return _imgDbPromise;
+}
+// Einfacher, schneller Inhalts-Hash (djb2) + Länge als Zusatzabsicherung gegen Kollisionen.
+// Muss nicht kryptographisch sicher sein — nur zuverlässig genug für Bild-Deduplizierung.
+function imgContentHash(str){
+  let h = 5381;
+  for(let i=0;i<str.length;i++){ h = ((h*33) ^ str.charCodeAt(i)) >>> 0; }
+  return 'img_' + h.toString(36) + '_' + str.length.toString(36);
+}
+function idbPut(key, value){
+  return openImageDB().then(db=> new Promise((resolve,reject)=>{
+    const tx = db.transaction(IMG_STORE, 'readwrite');
+    tx.objectStore(IMG_STORE).put(value, key);
+    tx.oncomplete = ()=>resolve();
+    tx.onerror = ()=>reject(tx.error);
+  }));
+}
+function idbGet(key){
+  return openImageDB().then(db=> new Promise((resolve,reject)=>{
+    const tx = db.transaction(IMG_STORE, 'readonly');
+    const req = tx.objectStore(IMG_STORE).get(key);
+    req.onsuccess = ()=> resolve(req.result || null);
+    req.onerror = ()=> reject(req.error);
+  }));
+}
+// dataUrl → Hash-Referenz. Speichert das Bild (falls neu) in IndexedDB und gibt die
+// kurze Referenz zurück, die in localStorage abgelegt wird. Bei IndexedDB-Problemen
+// (sehr selten, z. B. manche privaten Browser-Modi) wird die dataUrl direkt
+// durchgereicht — Speichern schlägt dadurch nie grundlos fehl, es entfällt nur
+// die Deduplizierung für diesen einen Fall.
+async function storeImageRef(dataUrl){
+  if(!dataUrl) return null;
+  if(dataUrl.indexOf('data:')!==0) return dataUrl; // schon eine Referenz (idempotent) — nicht erneut hashen
+  const hash = imgContentHash(dataUrl);
+  try{ await idbPut(hash, dataUrl); return hash; }
+  catch(e){ return dataUrl; }
+}
+// Hash-Referenz ODER (Altformat) direkte dataUrl → tatsächliche dataUrl.
+async function resolveImageRef(ref){
+  if(!ref) return null;
+  if(ref.indexOf('data:')===0) return ref; // Altformat / Fallback: bereits eine echte dataUrl
+  try{ const v = await idbGet(ref); return v || null; }
+  catch(e){ return null; }
+}
+
 /* ---------------- Asset-Bibliothek (geteilt + lokal) ---------------- */
 // Geteilte Standard-Assets: fest im Code hinterlegt, daher für JEDEN Nutzer sofort sichtbar,
 // ohne eigenen Upload — im Gegensatz zu den privaten Assets unten (nur im eigenen Browser).
@@ -3321,7 +3407,7 @@ const DEFAULT_ASSETS = {
 };
 const ASSETS_KEY = 'scg_assets_v1';
 function getAssets(){ try{ return JSON.parse(localStorage.getItem(ASSETS_KEY)||'{}'); }catch(e){ return {}; } }
-function saveAssets(a){ try{ localStorage.setItem(ASSETS_KEY, JSON.stringify(a)); updateStorageMeter(); }catch(e){ alert('Speicher voll — Bibliothek konnte nicht gespeichert werden. Bitte alte Assets/Entwürfe löschen.'); } }
+function saveAssets(a){ try{ localStorage.setItem(ASSETS_KEY, JSON.stringify(a)); updateStorageMeter(); }catch(e){ alertStorageFull(e); } }
 
 // Transparente Speicheranzeige. Entwürfe + Assets liegen in localStorage (Limit meist ~5 MB) —
 // das ist die tatsächliche Grenze. Das Browser-Kontingent (StorageManager) wird als Schätzwert ergänzt.
@@ -3342,6 +3428,35 @@ async function updateStorageMeter(){
   el.textContent = `${assetCount} Assets · ${projCount} Entwürfe · ${lsMB} MB in localStorage (Limit meist ~5 MB)${quota}`;
 }
 window.updateStorageMeter = updateStorageMeter;
+
+// Verständliche, konkrete Fehlermeldung statt kryptischem Browser-Fehler, falls
+// localStorage trotz Bild-Auslagerung in IndexedDB doch einmal voll sein sollte
+// (z. B. sehr viele Entwürfe mit sehr viel Text, oder IndexedDB im Browser blockiert).
+async function alertStorageFull(err){
+  let detail = '';
+  try{
+    const projCount = Object.keys(getAllProjects()).length;
+    let assetCount = 0;
+    try{ const a=getAssets(); Object.keys(a).forEach(k=> assetCount += (a[k]||[]).length); }catch(e){}
+    const lsMB = (localStorageBytes()/1048576).toFixed(2);
+    let quotaLine = '';
+    if(navigator.storage && navigator.storage.estimate){
+      try{
+        const est = await navigator.storage.estimate();
+        if(est.quota) quotaLine = `\n• Browser-Kontingent (gesamt, inkl. IndexedDB): ca. ${(est.quota/1048576).toFixed(0)} MB, davon genutzt ca. ${((est.usage||0)/1048576).toFixed(0)} MB`;
+      }catch(e){}
+    }
+    detail =
+      `\n\nWarum: Der Browser reserviert für reinen Text-Speicher (localStorage) nur wenige MB — ` +
+      `unabhängig vom deutlich größeren Kontingent für Bilder. Genau dieser kleine Text-Speicher ist jetzt voll.` +
+      `\n\nAktuell belegt:\n• ${projCount} gespeicherte Entwürfe\n• ${assetCount} Assets in der Bibliothek\n• ${lsMB} MB Text-Daten in localStorage${quotaLine}` +
+      `\n\nSo schaffst du wieder Platz:\n` +
+      `1. Nicht mehr benötigte Entwürfe löschen (oben „Entwurf wählen“ → ✕).\n` +
+      `2. Vorher „Alle exportieren (Datei)“ nutzen, damit nichts verloren geht.\n` +
+      `3. In der Asset-Bibliothek nicht mehr benötigte Logos/Bilder löschen.`;
+  }catch(e2){ /* Detailtext ist nur eine Zusatzinfo — Kernmeldung erscheint trotzdem */ }
+  alert('Speichern fehlgeschlagen — der Browser-Speicher ist voll.' + detail);
+}
 let galleryTarget=null, galleryCat=null;
 const ASSET_CATS = [
   {key:'eigenesLogo',  label:'Vereinslogos',  target:'home',      compress:'home'},
@@ -3372,7 +3487,13 @@ function renderGalleryCats(){
     wrap.appendChild(b);
   });
 }
-function renderGallery(){
+// Ein Asset-Eintrag hält entweder {hash} (neu, dedupliziert) oder — Altbestand —
+// direkt {dataUrl}. Diese Funktion liefert in beiden Fällen die tatsächliche dataUrl.
+function assetItemImage(it){
+  if(it.hash) return resolveImageRef(it.hash);
+  return resolveImageRef(it.dataUrl); // Altformat: resolveImageRef gibt dataUrl unverändert zurück
+}
+async function renderGallery(){
   const grid=document.getElementById('galleryGrid'); grid.innerHTML='';
   const all=getAssets(); const localItems=all[galleryCat]||[];
   const sharedItems=DEFAULT_ASSETS[galleryCat]||[];
@@ -3381,7 +3502,7 @@ function renderGallery(){
   up.innerHTML='＋<div style="margin-top:4px;">Hochladen</div>';
   up.addEventListener('click', ()=> document.getElementById('galleryUploadInput').click());
   grid.appendChild(up);
-  // Geteilte Standard-Assets zuerst (für alle Nutzer sichtbar, nicht löschbar)
+  // Geteilte Standard-Assets zuerst (für alle Nutzer sichtbar, nicht löschbar) — immer als dataUrl im Code
   sharedItems.forEach(it=>{
     const el=document.createElement('div'); el.className='gallery-item';
     const th=document.createElement('div'); th.className='gi-thumb'; th.style.backgroundImage=`url(${it.dataUrl})`;
@@ -3390,16 +3511,19 @@ function renderGallery(){
     el.addEventListener('click',()=>pickAsset(it.dataUrl));
     el.appendChild(th); el.appendChild(badge); el.appendChild(nm); grid.appendChild(el);
   });
-  // Eigene, lokal hochgeladene Assets (nur im eigenen Browser sichtbar, löschbar)
-  localItems.forEach((it,idx)=>{
+  // Eigene, lokal hochgeladene Assets (nur im eigenen Browser sichtbar, löschbar) — Bild aus IndexedDB auflösen
+  for(let idx=0; idx<localItems.length; idx++){
+    const it = localItems[idx];
+    const dataUrl = await assetItemImage(it);
+    if(!dataUrl) continue; // Bild nicht mehr auffindbar (z. B. IndexedDB geleert) — Eintrag überspringen
     const el=document.createElement('div'); el.className='gallery-item';
-    const th=document.createElement('div'); th.className='gi-thumb'; th.style.backgroundImage=`url(${it.dataUrl})`;
+    const th=document.createElement('div'); th.className='gi-thumb'; th.style.backgroundImage=`url(${dataUrl})`;
     const nm=document.createElement('div'); nm.className='gi-name'; nm.textContent=it.name;
     const dl=document.createElement('div'); dl.className='gi-del'; dl.textContent='✕'; dl.title='Löschen';
-    el.addEventListener('click',()=>pickAsset(it.dataUrl));
+    el.addEventListener('click',()=>pickAsset(dataUrl));
     dl.addEventListener('click',e=>{ e.stopPropagation(); if(!confirm('Asset löschen?')) return; localItems.splice(idx,1); all[galleryCat]=localItems; saveAssets(all); renderGalleryCats(); renderGallery(); });
     el.appendChild(th); el.appendChild(nm); el.appendChild(dl); grid.appendChild(el);
-  });
+  }
   renderGalleryUsage();
 }
 function renderGalleryUsage(){
@@ -3436,7 +3560,9 @@ document.getElementById('galleryUploadInput').addEventListener('change', e=>{
   reader.onload=async ev=>{
     const data=await compressDataUrl(ev.target.result, catDef(galleryCat).compress);
     const name=(prompt('Name für dieses Asset:', f.name.replace(/\.[^.]+$/,'')) || f.name);
-    const all=getAssets(); all[galleryCat]=all[galleryCat]||[]; all[galleryCat].push({name, dataUrl:data}); saveAssets(all);
+    const hash = await storeImageRef(data);   // Bild einmalig in IndexedDB, nur die Referenz in localStorage
+    const all=getAssets(); all[galleryCat]=all[galleryCat]||[]; all[galleryCat].push({name, hash});
+    saveAssets(all);
     renderGalleryCats(); renderGallery();
   };
   reader.readAsDataURL(f);
@@ -3446,16 +3572,37 @@ document.querySelectorAll('.lib-btn[data-target]').forEach(b=> b.addEventListene
 document.getElementById('galleryClose').addEventListener('click', ()=> document.getElementById('galleryOverlay').classList.remove('open'));
 document.getElementById('galleryOverlay').addEventListener('click', e=>{ if(e.target.id==='galleryOverlay') e.target.classList.remove('open'); });
 document.getElementById('openLibraryBtn').addEventListener('click', ()=> openGallery(null, galleryCat || 'eigenesLogo'));
-document.getElementById('assetExportBtn').addEventListener('click', ()=>{
+document.getElementById('assetExportBtn').addEventListener('click', async ()=>{
   const a=getAssets(); if(!Object.keys(a).length){ alert('Bibliothek ist leer.'); return; }
-  const blob=new Blob([JSON.stringify(a,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob);
+  // Für eine portable Backup-Datei müssen die Bilder wieder vollständig eingebettet werden
+  // (die Hash-Referenzen aus IndexedDB gelten nur in diesem Browser).
+  const expanded = {};
+  for(const cat of Object.keys(a)){
+    expanded[cat] = [];
+    for(const it of (a[cat]||[])){
+      const dataUrl = await assetItemImage(it);
+      if(dataUrl) expanded[cat].push({ name: it.name, dataUrl });
+    }
+  }
+  const blob=new Blob([JSON.stringify(expanded,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob);
   const el=document.createElement('a'); el.href=url; el.download='scg-asset-bibliothek.json'; el.click(); URL.revokeObjectURL(url);
 });
 document.getElementById('assetImportFile').addEventListener('change', e=>{
   const f=e.target.files[0]; if(!f) return; const r=new FileReader();
-  r.onload=ev=>{ try{ const imp=JSON.parse(ev.target.result); const cur=getAssets();
-    Object.keys(imp).forEach(cat=>{ cur[cat]=(cur[cat]||[]).concat(imp[cat]||[]); }); saveAssets(cur); alert('Bibliothek importiert.'); }
-    catch(err){ alert('Diese Datei konnte nicht gelesen werden.'); } e.target.value=''; };
+  r.onload=async ev=>{ try{
+    const imp=JSON.parse(ev.target.result); const cur=getAssets();
+    // Importierte Bilder (volle dataUrls) wieder in Hash-Referenzen umwandeln,
+    // damit die Bibliothek in localStorage klein und dedupliziert bleibt.
+    for(const cat of Object.keys(imp)){
+      cur[cat]=cur[cat]||[];
+      for(const it of (imp[cat]||[])){
+        if(it.hash){ cur[cat].push(it); continue; } // bereits im neuen Format
+        const hash = await storeImageRef(it.dataUrl);
+        cur[cat].push({ name: it.name, hash });
+      }
+    }
+    saveAssets(cur); alert('Bibliothek importiert.');
+  } catch(err){ alert('Diese Datei konnte nicht gelesen werden.'); } e.target.value=''; };
   r.readAsText(f);
 });
 
@@ -3558,7 +3705,41 @@ function saveAllProjects(obj){
   if(window.updateStorageMeter) updateStorageMeter();
 }
 
-function serializeState(){
+// Für Backup-Dateien (Export/Import) müssen Bilder wieder als echte dataUrls eingebettet
+// bzw. beim Import wieder in Hash-Referenzen zurückverwandelt werden — Hash-Referenzen
+// gelten nur innerhalb der IndexedDB DIESES Browsers, eine Backup-Datei muss aber auch
+// auf einem anderen Gerät/Browser vollständig funktionieren.
+async function expandProjectImages(proj){
+  const out = JSON.parse(JSON.stringify(proj));
+  if(out.images) for(const k of Object.keys(out.images)){ out.images[k] = (await resolveImageRef(out.images[k])) || out.images[k]; }
+  if(out.lineupPhotos) for(const k of Object.keys(out.lineupPhotos)){ out.lineupPhotos[k] = (await resolveImageRef(out.lineupPhotos[k])) || out.lineupPhotos[k]; }
+  if(out.mv && out.mv.src){
+    const s = out.mv.src;
+    if(s.bg) s.bg = (await resolveImageRef(s.bg)) || s.bg;
+    if(s.club) s.club = (await resolveImageRef(s.club)) || s.club;
+    if(Array.isArray(s.opp)) for(let i=0;i<s.opp.length;i++){ if(s.opp[i]) s.opp[i] = (await resolveImageRef(s.opp[i])) || s.opp[i]; }
+    if(Array.isArray(s.comp)) for(let i=0;i<s.comp.length;i++){ if(s.comp[i]) s.comp[i] = (await resolveImageRef(s.comp[i])) || s.comp[i]; }
+  }
+  return out;
+}
+async function packProjectImages(proj){
+  const out = JSON.parse(JSON.stringify(proj));
+  if(out.images) for(const k of Object.keys(out.images)){ if(out.images[k]) out.images[k] = await storeImageRef(out.images[k]); }
+  if(out.lineupPhotos) for(const k of Object.keys(out.lineupPhotos)){ if(out.lineupPhotos[k]) out.lineupPhotos[k] = await storeImageRef(out.lineupPhotos[k]); }
+  if(out.mv && out.mv.src){
+    const s = out.mv.src;
+    if(s.bg) s.bg = await storeImageRef(s.bg);
+    if(s.club) s.club = await storeImageRef(s.club);
+    if(Array.isArray(s.opp)) for(let i=0;i<s.opp.length;i++){ if(s.opp[i]) s.opp[i] = await storeImageRef(s.opp[i]); }
+    if(Array.isArray(s.comp)) for(let i=0;i<s.comp.length;i++){ if(s.comp[i]) s.comp[i] = await storeImageRef(s.comp[i]); }
+  }
+  return out;
+}
+
+// Async, weil Bilder beim Speichern erst in IndexedDB abgelegt werden (liefert nur
+// die kurze Hash-Referenz zurück, die dann in localStorage landet — siehe Bild-Speicher
+// oben). Dadurch dupliziert derselbe Entwurf/dasselbe Logo den Bildinhalt nicht mehr.
+async function serializeState(){
   const data = { fields:{}, lineupPlayers:[], images:{}, lineupPhotos:{}, meta:{} };
 
   document.querySelectorAll('#form input[type=text], #form input[type=number], #form input[type=color], #form input[type=range], #form input[type=hidden], #form textarea, #form select').forEach(el=>{
@@ -3578,12 +3759,24 @@ function serializeState(){
   data.steps = Object.assign({}, STEPS);
   data.typo = JSON.parse(JSON.stringify(TYPO));
   data.headlines = JSON.parse(JSON.stringify(HEADLINES));  // Überschrift-Stil pro Template
-  // Monatsvorschau: kompletter Zustand + Bildquellen
-  data.mv = { settings: JSON.parse(JSON.stringify(MV)), src: JSON.parse(JSON.stringify(mvSrc)) };
+
+  // Monatsvorschau: Einstellungen + Bildquellen (als Hash-Referenzen, siehe oben)
+  const mvSrcRefs = { bg:null, club:null, opp:Array(MV_TILE_MAX).fill(null), comp:Array(MV_TILE_MAX).fill(null) };
+  mvSrcRefs.bg = await storeImageRef(mvSrc.bg);
+  mvSrcRefs.club = await storeImageRef(mvSrc.club);
+  for(let i=0;i<MV_TILE_MAX;i++){
+    mvSrcRefs.opp[i] = await storeImageRef(mvSrc.opp[i]);
+    mvSrcRefs.comp[i] = await storeImageRef(mvSrc.comp[i]);
+  }
+  data.mv = { settings: JSON.parse(JSON.stringify(MV)), src: mvSrcRefs };
 
   // Wasserzeichen wird fest eingebettet und NICHT in den Entwurf kopiert (spart Platz)
-  ['bg','home','away','player','coach','luBg'].forEach(k=>{ if(state[k]) data.images[k] = state[k].src; });
-  Object.keys(state.lineupPhotos).forEach(idx=>{ data.lineupPhotos[idx] = state.lineupPhotos[idx].src; });
+  for(const k of ['bg','home','away','player','coach','luBg']){
+    if(state[k]) data.images[k] = await storeImageRef(state[k].src);
+  }
+  for(const idx of Object.keys(state.lineupPhotos)){
+    data.lineupPhotos[idx] = await storeImageRef(state.lineupPhotos[idx].src);
+  }
 
   return data;
 }
@@ -3654,11 +3847,14 @@ async function applyState(data){
     for(let i=0;i<MV_TILE_MAX;i++){ mvImg.opp[i]=null; mvImg.comp[i]=null; mvSrc.opp[i]=''; mvSrc.comp[i]=''; }
     mvSrc.bg=''; mvSrc.club='';
     const src = data.mv.src || {};
-    const loadMV=(dataUrl, assign)=>{ if(!dataUrl) return; const im=new Image(); im.onload=()=>{ assign(im); draw(); }; im.src=dataUrl; };
-    if(src.bg){ mvSrc.bg=src.bg; loadMV(src.bg, im=>mvImg.bg=im); }
-    if(src.club){ mvSrc.club=src.club; loadMV(src.club, im=>mvImg.club=im); }
-    if(Array.isArray(src.opp)) src.opp.forEach((u,i)=>{ if(u){ mvSrc.opp[i]=u; loadMV(u, im=>mvImg.opp[i]=im); } });
-    if(Array.isArray(src.comp)) src.comp.forEach((u,i)=>{ if(u){ mvSrc.comp[i]=u; loadMV(u, im=>mvImg.comp[i]=im); } });
+    // ref kann eine Hash-Referenz (neues Format) oder eine echte dataUrl (altes Format) sein —
+    // resolveImageRef behandelt beides transparent.
+    const loadMV=(ref, assign)=>{ if(!ref) return; resolveImageRef(ref).then(dataUrl=>{ if(!dataUrl) return;
+      const im=new Image(); im.onload=()=>{ assign(im, dataUrl); draw(); if(activeTab==='monat') renderMVPanel(); }; im.src=dataUrl; }); };
+    if(src.bg) loadMV(src.bg, (im,url)=>{ mvImg.bg=im; mvSrc.bg=url; });
+    if(src.club) loadMV(src.club, (im,url)=>{ mvImg.club=im; mvSrc.club=url; });
+    if(Array.isArray(src.opp)) src.opp.forEach((u,i)=>{ if(u) loadMV(u, (im,url)=>{ mvImg.opp[i]=im; mvSrc.opp[i]=url; }); });
+    if(Array.isArray(src.comp)) src.comp.forEach((u,i)=>{ if(u) loadMV(u, (im,url)=>{ mvImg.comp[i]=im; mvSrc.comp[i]=url; }); });
     if(typeof renderMVPanel==='function' && activeTab==='monat') renderMVPanel();
   }
 
@@ -3728,27 +3924,33 @@ async function applyState(data){
   selectPlayer(Math.max(0, Math.min(PLAYER_COUNT-1, selectedPlayer)));
   if(window.updateStorageMeter) updateStorageMeter();
 
+  // ref kann eine Hash-Referenz (neues Format, aus IndexedDB) oder eine echte dataUrl
+  // (altes Format / importierte Backup-Datei) sein — resolveImageRef behandelt beides.
   const promises = [];
   if(data.images){
-    if(data.images.bg) promises.push(loadImageInto('bg', data.images.bg, 'thumb-bg'));
-    if(data.images.home) promises.push(loadImageInto('home', data.images.home, 'thumb-home'));
-    if(data.images.away) promises.push(loadImageInto('away', data.images.away, 'thumb-away'));
-    if(data.images.player) promises.push(loadImageInto('player', data.images.player, 'thumb-player'));
-    if(data.images.coach) promises.push(loadImageInto('coach', data.images.coach, 'thumb-coach'));
-    if(data.images.luBg) promises.push(loadImageInto('luBg', data.images.luBg, 'thumb-luBg'));
+    const loadRef=(key, ref, thumbId)=> ref ? resolveImageRef(ref).then(url=> url ? loadImageInto(key, url, thumbId) : null) : null;
+    if(data.images.bg) promises.push(loadRef('bg', data.images.bg, 'thumb-bg'));
+    if(data.images.home) promises.push(loadRef('home', data.images.home, 'thumb-home'));
+    if(data.images.away) promises.push(loadRef('away', data.images.away, 'thumb-away'));
+    if(data.images.player) promises.push(loadRef('player', data.images.player, 'thumb-player'));
+    if(data.images.coach) promises.push(loadRef('coach', data.images.coach, 'thumb-coach'));
+    if(data.images.luBg) promises.push(loadRef('luBg', data.images.luBg, 'thumb-luBg'));
   }
   Object.keys(data.lineupPhotos||{}).forEach(idx=>{
-    promises.push(new Promise(resolve=>{
+    const ref = data.lineupPhotos[idx];
+    if(!ref) return;
+    promises.push(resolveImageRef(ref).then(dataUrl=> new Promise(resolve=>{
+      if(!dataUrl){ resolve(); return; }
       const img = new Image();
       img.onload = ()=>{
         state.lineupPhotos[idx] = img;
         const thumb = document.getElementById(`lineup-thumb-${idx}`);
-        if(thumb) thumb.style.backgroundImage = `url(${data.lineupPhotos[idx]})`;
+        if(thumb) thumb.style.backgroundImage = `url(${dataUrl})`;
         resolve();
       };
       img.onerror = resolve;
-      img.src = data.lineupPhotos[idx];
-    }));
+      img.src = dataUrl;
+    })));
   });
 
   await Promise.all(promises);
@@ -3767,18 +3969,23 @@ function refreshProjectSelect(selectName){
   if(selectName) sel.value = selectName;
 }
 
-document.getElementById('saveProjectBtn').addEventListener('click', ()=>{
+document.getElementById('saveProjectBtn').addEventListener('click', async ()=>{
   const existing = document.getElementById('savedProjects').value;
   const name = prompt('Name für diesen Entwurf (z. B. "Heim gegen Norf"):', existing || '');
   if(!name) return;
-  const projects = getAllProjects();
+  const btn = document.getElementById('saveProjectBtn');
+  const prevText = btn.textContent; btn.textContent='Speichert…'; btn.disabled=true;
   try{
-    projects[name] = serializeState();
-    saveAllProjects(projects);
+    const snapshot = await serializeState();     // Bilder gehen dedupliziert in IndexedDB, nur Hash-Referenzen hier
+    const projects = getAllProjects();
+    projects[name] = snapshot;
+    saveAllProjects(projects);                    // wirft bei vollem localStorage (jetzt selten, da Bilder ausgelagert)
     refreshProjectSelect(name);
     alert('Gespeichert: ' + name);
   } catch(e){
-    alert('Speichern fehlgeschlagen — der Speicher ist vermutlich voll (zu viele/große Bilder in gespeicherten Entwürfen). Alte Entwürfe löschen und erneut versuchen.');
+    await alertStorageFull(e);
+  } finally {
+    btn.textContent = prevText; btn.disabled=false;
   }
 });
 
@@ -3813,30 +4020,46 @@ document.getElementById('renameProjectBtn').addEventListener('click', ()=>{
   refreshProjectSelect(newName);
 });
 
-document.getElementById('exportAllBtn').addEventListener('click', ()=>{
+document.getElementById('exportAllBtn').addEventListener('click', async ()=>{
   const projects = getAllProjects();
   if(Object.keys(projects).length===0){ alert('Noch keine Entwürfe gespeichert.'); return; }
-  const blob = new Blob([JSON.stringify(projects, null, 2)], {type:'application/json'});
+  const btn = document.getElementById('exportAllBtn');
+  const prevText = btn.textContent; btn.textContent='Exportiert…'; btn.disabled=true;
+  // Bilder aus IndexedDB wieder vollständig einbetten, damit die Backup-Datei
+  // auf jedem Gerät/Browser für sich funktioniert (Hash-Referenzen gelten nur hier).
+  const expanded = {};
+  for(const name of Object.keys(projects)){ expanded[name] = await expandProjectImages(projects[name]); }
+  const blob = new Blob([JSON.stringify(expanded, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = 'scg-entwuerfe-backup.json'; a.click();
   URL.revokeObjectURL(url);
+  btn.textContent = prevText; btn.disabled=false;
 });
 
 document.getElementById('importFile').addEventListener('change', e=>{
   const f = e.target.files[0];
   if(!f) return;
   const reader = new FileReader();
-  reader.onload = ev=>{
+  reader.onload = async ev=>{
+    let imported, packed;
     try{
-      const imported = JSON.parse(ev.target.result);
+      imported = JSON.parse(ev.target.result);
+    } catch(err){
+      alert('Diese Datei konnte nicht gelesen werden — bitte eine zuvor hier exportierte Backup-Datei verwenden.');
+      e.target.value = ''; return;
+    }
+    try{
+      // Eingebettete Bilder wieder in Hash-Referenzen umwandeln (dedupliziert, klein in localStorage).
+      packed = {};
+      for(const name of Object.keys(imported)){ packed[name] = await packProjectImages(imported[name]); }
       const existing = getAllProjects();
-      const merged = Object.assign({}, existing, imported);
+      const merged = Object.assign({}, existing, packed);
       saveAllProjects(merged);
       refreshProjectSelect();
       alert(`Importiert: ${Object.keys(imported).length} Entwurf/Entwürfe. Vorhandene Entwürfe mit gleichem Namen wurden überschrieben.`);
     } catch(err){
-      alert('Diese Datei konnte nicht gelesen werden — bitte eine zuvor hier exportierte Backup-Datei verwenden.');
+      await alertStorageFull(err);
     }
     e.target.value = '';
   };
