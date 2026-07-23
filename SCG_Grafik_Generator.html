@@ -132,6 +132,30 @@
   .hl-card .hl-name{font-size:10px;color:#9a9a9a;margin-top:6px;letter-spacing:.3px;}
   .hl-card.active .hl-name{color:#d98;}
 
+  /* Monatsvorschau */
+  .mv-sec{border:1px solid var(--line);border-radius:8px;margin-bottom:10px;background:var(--panel-2);overflow:hidden;}
+  .mv-sec>summary{cursor:pointer;padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:1.3px;color:var(--red);font-weight:800;list-style:none;user-select:none;}
+  .mv-sec>summary::-webkit-details-marker{display:none;}
+  .mv-sec>summary::before{content:"▸ ";color:#777;}
+  .mv-sec[open]>summary::before{content:"▾ ";}
+  .mv-body{padding:2px 12px 12px;}
+  .mv-tile{border:1px solid var(--line);border-radius:7px;margin-bottom:8px;background:var(--panel);overflow:hidden;}
+  .mv-tile>summary{cursor:pointer;padding:8px 10px;font-size:11.5px;font-weight:700;color:#ddd;list-style:none;display:flex;align-items:center;gap:8px;}
+  .mv-tile>summary::-webkit-details-marker{display:none;}
+  .mv-tile>summary::before{content:"▸";color:#777;}
+  .mv-tile[open]>summary::before{content:"▾";}
+  .mv-tile .mv-swatch{width:14px;height:14px;border-radius:3px;border:1px solid #555;flex:0 0 auto;}
+  .mv-tile-body{padding:4px 10px 10px;}
+  .mv-grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .mv-seg{display:flex;gap:5px;margin:3px 0 6px;}
+  .mv-seg button{flex:1;background:var(--panel);border:1px solid var(--line);color:#ccc;border-radius:5px;padding:6px 0;font-size:11px;cursor:pointer;}
+  .mv-seg button.active{background:var(--red);border-color:var(--red);color:#fff;}
+  .mv-upload-mini{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px dashed var(--line);border-radius:6px;padding:6px 8px;cursor:pointer;position:relative;}
+  .mv-upload-mini .mv-thumb{width:30px;height:30px;border-radius:4px;background:#000 center/contain no-repeat;flex:0 0 auto;}
+  .mv-upload-mini .mv-uplabel{font-size:11px;color:#bbb;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+  .mv-upload-mini input[type=file]{display:none;}
+  .mv-clear-mini{margin-left:auto;color:#e66;font-size:12px;cursor:pointer;padding:0 4px;}
+
   .lineup-slot{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
   .lineup-upload{padding:4px;border:1px dashed var(--line);border-radius:5px;background:var(--panel-2);cursor:pointer;flex:0 0 auto;position:relative;}
   .player-row .lineup-upload .thumb{width:40px;height:40px;margin:0;}
@@ -232,7 +256,7 @@
 
 <div id="form">
   <h1>SCG <span>Grafik-Generator</span></h1>
-  <div class="sub">vier Templates · ein Layout-System</div>
+  <div class="sub">sechs Templates · ein Layout-System</div>
 
   <div style="margin-bottom:18px; padding:12px; background:var(--panel-2); border-radius:8px; border:1px solid var(--line);">
     <div class="seg-label" style="margin-bottom:6px;">Gespeicherte Entwürfe</div>
@@ -294,6 +318,7 @@
     <div class="tab-btn" data-tab="pokal">Pokal</div>
     <div class="tab-btn" data-tab="neuzugang">Neuzugang</div>
     <div class="tab-btn" data-tab="lineup">Aufstellung</div>
+    <div class="tab-btn" data-tab="monat">Monatsvorschau</div>
   </div>
 
   <fieldset id="headlineField">
@@ -808,6 +833,14 @@ RENÉ KAUFMANN</textarea>
     </fieldset>
   </div>
 
+  <div class="tab-panel" data-tab="monat">
+    <fieldset>
+      <legend>Monatsvorschau</legend>
+      <div class="hint" style="margin:0 0 10px;">Spielplan als 3×3-Raster (max. 9 Spiele). Alle Einstellungen werden im Entwurf gespeichert und exakt so exportiert wie in der Vorschau.</div>
+      <div id="mvPanel"></div>
+    </fieldset>
+  </div>
+
   <fieldset id="infoColorsField" style="display:none;">
     <details>
       <summary style="cursor:pointer;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--red);font-weight:700;">Farben des Info-Layouts</summary>
@@ -844,7 +877,7 @@ RENÉ KAUFMANN</textarea>
     </details>
   </fieldset>
 
-  <fieldset>
+  <fieldset id="footerField">
     <legend>Fußzeile</legend>
     <div class="row2">
       <div>
@@ -1000,6 +1033,43 @@ function transformText(text, key){
 }
 
 const state = { bg:null, home:null, away:null, player:null, coach:null, wm:null, wmDark:null, luBg:null, lineupPhotos:{} };
+
+/* ===================== Monatsvorschau (eigenständiges Template) =====================
+   Vollständig entkoppelt: eigener Zustand MV, eigene Bild-Caches, eigene Zeichen-/UI-/
+   Serialisierungsfunktionen. Verändert KEINE bestehenden Templates. */
+const MV_TILE_MAX = 9;
+// 1–5-Stufen → tatsächliche Faktoren
+const MV_LOGOSIZE  = [0.62,0.80,1.00,1.22,1.45];   // Gegnerlogo-Größe in Kachel
+const MV_POS       = [-1,-0.5,0,0.5,1];            // Positions-Offset (Bruchteil)
+const MV_GAP       = [0.55,0.78,1.00,1.28,1.60];   // Abstand der Elemente
+const MV_PAD       = [0.55,0.78,1.00,1.30,1.65];   // Innenabstand
+const MV_MONTHSIZE = [0.70,0.85,1.00,1.20,1.42];
+const MV_BARSIZE   = [0.75,0.88,1.00,1.15,1.32];
+const MV_CLUBSIZE  = [0.62,0.80,1.00,1.25,1.55];
+const MV_PLAYERSIZE= [0.70,0.85,1.00,1.20,1.45];
+function mvClamp(v){ return Math.max(1, Math.min(5, v||3)); }
+function mvVal(arr, step){ return arr[mvClamp(step)-1]; }
+function defaultMVTile(){
+  return { date:'', time:'', bg:'#C8102E', fg:'#F4E9C1', logoSize:3, logoPos:3, gap:3, pad:3 };
+}
+function defaultMV(){
+  return {
+    count: 8,
+    month: { text:'JANUAR 2026', font:'Anton', size:3, color:'#1A1A1A', posX:3, posY:3 },
+    barLeft:  { text:'HEIM',     bg:'#C8102E', fg:'#FFFFFF', font:'Anton', size:3 },
+    barRight: { text:'AUSWÄRTS', bg:'#E6BB4D', fg:'#1A1A1A', font:'Anton', size:3 },
+    club: { size:3, posX:3, posY:3, opacity:100, shadow:false },
+    bgType: 'solid',          // solid | gradient | image
+    bgColor: '#F3ECDA',
+    bgColor2:'#E6D6AC',
+    player: { size:3, posX:4, posY:5, opacity:100, behind:false },
+    tiles: Array.from({length:MV_TILE_MAX}, defaultMVTile)
+  };
+}
+let MV = defaultMV();
+// Laufzeit-Bildcaches (dekodierte Images) + zugehörige Quell-Datenstrings (für Entwürfe)
+const mvImg = { bg:null, player:null, club:null, opp:Array(MV_TILE_MAX).fill(null), comp:Array(MV_TILE_MAX).fill(null) };
+const mvSrc = { bg:'', player:'', club:'', opp:Array(MV_TILE_MAX).fill(''), comp:Array(MV_TILE_MAX).fill('') };
 
 const FORMATIONS = {
   '4-4-2':[1,4,4,2],
@@ -1529,6 +1599,13 @@ function draw(){
   if(canvas.width!==W || canvas.height!==H){ canvas.width=W; canvas.height=H; }
   const scale = H/1920;
   ctx.clearRect(0,0,W,H);
+
+  // Monatsvorschau: komplett eigenes Layout (eigener Hintergrund, keine gemeinsame Fußzeile)
+  if(activeTab==='monat'){
+    drawMonatsvorschau(scale, W, H);
+    ctx.textAlign='left';
+    return;
+  }
 
   const isPokal = activeTab==='pokal';
 
@@ -2698,6 +2775,339 @@ function renderHeadlineBox(){
 document.getElementById('hlColor').addEventListener('input',e=>{ hlGet(activeTab).color=e.target.value; draw(); });
 document.getElementById('hlAccent').addEventListener('input',e=>{ hlGet(activeTab).accent=e.target.value; draw(); });
 
+/* ===================== Monatsvorschau — Zeichnen ===================== */
+// Text mittig, automatisch auf maxW verkleinert. font = vollständiger CSS-Font ohne Größe (Größe wird gesetzt).
+function mvFitCenter(text, cx, y, maxW, basePx, fontFamily, color, weight){
+  let px = basePx;
+  ctx.font = `${weight||400} ${px}px "${fontFamily}", sans-serif`;
+  let w = ctx.measureText(text).width;
+  if(w > maxW && w>0){ px = px * (maxW/w); ctx.font = `${weight||400} ${px}px "${fontFamily}", sans-serif`; }
+  ctx.fillStyle = color; ctx.textAlign='center';
+  ctx.fillText(text, cx, y);
+  ctx.textAlign='left';
+  return px;
+}
+function drawMonatsvorschau(scale, W, H){
+  // --- Hintergrund (deckt gesamte Fläche, damit Export = Vorschau) ---
+  if(MV.bgType==='image' && mvImg.bg){
+    drawImageZoomPan(ctx, mvImg.bg, 0,0,W,H, 1, 0, 0);
+  } else if(MV.bgType==='gradient'){
+    const g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0, MV.bgColor); g.addColorStop(1, MV.bgColor2);
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  } else {
+    ctx.fillStyle=MV.bgColor; ctx.fillRect(0,0,W,H);
+  }
+
+  const count = Math.max(1, Math.min(MV_TILE_MAX, MV.count));
+  const clubImg = mvImg.club || state.home;
+
+  // Spielerbild optional HINTER dem Raster
+  if(mvImg.player && MV.player.behind) drawMVPlayer(scale, W, H);
+
+  // --- Vereinslogo oben mittig ---
+  if(clubImg){
+    const cs = MV.club.size, sizeF = mvVal(MV_CLUBSIZE, cs);
+    const logoH = 150*sizeF*scale;
+    const cx = 540 + mvVal(MV_POS, MV.club.posX)*160;
+    const topY = (70 + mvVal(MV_POS, MV.club.posY)*70)*scale;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, MV.club.opacity/100));
+    if(MV.club.shadow){ ctx.shadowColor='rgba(0,0,0,0.35)'; ctx.shadowBlur=18*scale; ctx.shadowOffsetY=6*scale; }
+    drawImageContain(ctx, clubImg, cx-logoH/2, topY, logoH, logoH);
+    ctx.restore();
+  }
+
+  // --- Monatsüberschrift ---
+  const mMonth = MV.month;
+  const monthY = (330 + mvVal(MV_POS, mMonth.posY)*80)*scale;
+  const monthCX = 540 + mvVal(MV_POS, mMonth.posX)*180;
+  const monthPx = 104 * mvVal(MV_MONTHSIZE, mMonth.size) * scale;
+  ctx.textBaseline='alphabetic';
+  mvFitCenter(String(mMonth.text||'').toUpperCase(), monthCX, monthY, 940*scale, monthPx, mMonth.font, mMonth.color, 400);
+
+  // --- Home/Away-Leiste (zwei frei belegbare Felder) ---
+  drawMVBar(scale, (400 + mvVal(MV_POS, mMonth.posY)*80)*scale);
+
+  // --- Raster ---
+  const marginX = 66, gutterX = 24, gutterY = 24;
+  const rows = Math.ceil(count/3);
+  const tileW = (1080 - 2*marginX - 2*gutterX)/3;
+  const gridTop = 500*scale, gridBottom = 1885*scale, gridH = gridBottom - gridTop;
+  const maxTileH = (gridH - (rows-1)*gutterY*scale)/rows;
+  const tileH = Math.min(tileW*1.16*scale, maxTileH);
+  const blockH = rows*tileH + (rows-1)*gutterY*scale;
+  const startY = gridTop + (gridH - blockH)/2;
+
+  for(let i=0;i<count;i++){
+    const row = Math.floor(i/3);
+    const inRow = Math.min(3, count - row*3);           // Kacheln in dieser Reihe
+    const posInRow = i - row*3;
+    const rowW = inRow*tileW + (inRow-1)*gutterX;
+    const rowStartX = (1080 - rowW)/2;                  // letzte Reihe zentriert → keine Lücken
+    const x = rowStartX + posInRow*(tileW+gutterX);
+    const y = startY + row*(tileH + gutterY*scale);
+    drawMVTile(x, y, tileW, tileH, MV.tiles[i], mvImg.opp[i], mvImg.comp[i], scale);
+  }
+
+  // Spielerbild optional VOR dem Raster
+  if(mvImg.player && !MV.player.behind) drawMVPlayer(scale, W, H);
+}
+function drawMVBar(scale, y){
+  const bl=MV.barLeft, br=MV.barRight;
+  const barH = 60 * mvVal(MV_BARSIZE, bl.size) * scale;
+  const padX = 26*scale, gap = 6*scale;
+  ctx.textBaseline='middle';
+  const lPx = 26*mvVal(MV_BARSIZE,bl.size)*scale, rPx = 26*mvVal(MV_BARSIZE,br.size)*scale;
+  ctx.font = `400 ${lPx}px "${bl.font}", sans-serif`;
+  const lTextW = ctx.measureText(String(bl.text||'').toUpperCase()).width;
+  ctx.font = `400 ${rPx}px "${br.font}", sans-serif`;
+  const rTextW = ctx.measureText(String(br.text||'').toUpperCase()).width;
+  const lW = lTextW + padX*2, rW = rTextW + padX*2;
+  const totalW = lW + rW + gap;
+  let x = 540 - totalW/2;
+  // linkes Feld
+  roundRectPathSides(ctx, x, y, lW, barH, barH*0.28, 0); ctx.fillStyle=bl.bg; ctx.fill();
+  ctx.font = `400 ${lPx}px "${bl.font}", sans-serif`; ctx.fillStyle=bl.fg; ctx.textAlign='center';
+  ctx.fillText(String(bl.text||'').toUpperCase(), x+lW/2, y+barH/2 + lPx*0.04);
+  x += lW + gap;
+  // rechtes Feld
+  roundRectPathSides(ctx, x, y, rW, barH, 0, barH*0.28); ctx.fillStyle=br.bg; ctx.fill();
+  ctx.font = `400 ${rPx}px "${br.font}", sans-serif`; ctx.fillStyle=br.fg;
+  ctx.fillText(String(br.text||'').toUpperCase(), x+rW/2, y+barH/2 + rPx*0.04);
+  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+}
+function drawMVTile(x, y, w, h, tile, oppImg, compImg, scale){
+  const r = Math.min(w,h)*0.09;
+  roundRectPath(ctx, x, y, w, h, r); ctx.fillStyle = tile.bg; ctx.fill();
+  const pad = 18 * mvVal(MV_PAD, tile.pad) * scale;
+  const inX = x+pad, inW = w-2*pad;
+  // Wettbewerbslogo optional oben links
+  let compBottom = y+pad;
+  if(compImg){
+    const cs = Math.min(w*0.20, h*0.18);
+    drawImageContain(ctx, compImg, inX, y+pad, cs, cs);
+    compBottom = y+pad+cs;
+  }
+  // Textzeile unten (Datum / Uhrzeit)
+  const parts = [];
+  if(tile.date) parts.push(String(tile.date).toUpperCase());
+  if(tile.time) parts.push(String(tile.time).toUpperCase());
+  const textLine = parts.join('  /  ');
+  const textPx = Math.min(w*0.115, 40*scale);
+  const textBaseY = y + h - pad - textPx*0.2;
+  // Gegnerlogo im mittleren Bereich (zwischen Wettbewerbslogo und Text)
+  const gapF = mvVal(MV_GAP, tile.gap);
+  const regionTop = compBottom + 6*scale*gapF;
+  const regionBottom = textBaseY - textPx - 10*scale*gapF;
+  const regionH = Math.max(10, regionBottom - regionTop);
+  if(oppImg){
+    const base = Math.min(inW, regionH) * 0.94 * mvVal(MV_LOGOSIZE, tile.logoSize);
+    const lx = x + w/2 - base/2;
+    const vShift = mvVal(MV_POS, tile.logoPos) * (regionH - base) * 0.5;
+    const ly = regionTop + (regionH - base)/2 + vShift;
+    drawImageContain(ctx, oppImg, lx, ly, base, base);
+  } else {
+    // dezenter Platzhalter-Kreis
+    ctx.save(); ctx.strokeStyle='rgba(255,255,255,0.22)'; ctx.lineWidth=2*scale;
+    const rr=Math.min(inW, regionH)*0.30; ctx.beginPath(); ctx.arc(x+w/2, regionTop+regionH/2, rr, 0, Math.PI*2); ctx.stroke(); ctx.restore();
+  }
+  if(textLine){
+    mvFitCenter(textLine, x+w/2, textBaseY, inW, textPx, 'Anton', tile.fg, 400);
+  }
+}
+function drawMVPlayer(scale, W, H){
+  const img=mvImg.player; if(!img) return;
+  const sizeF = mvVal(MV_PLAYERSIZE, MV.player.size);
+  const targetH = 900 * sizeF * scale;
+  const ar = img.width/img.height;
+  const targetW = targetH*ar;
+  const cx = 540 + mvVal(MV_POS, MV.player.posX)*320;
+  const bottomY = (1920 + mvVal(MV_POS, MV.player.posY)*260)*scale;
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, MV.player.opacity/100));
+  ctx.drawImage(img, cx-targetW/2, bottomY-targetH, targetW, targetH);
+  ctx.restore();
+}
+
+/* ===================== Monatsvorschau — Sidebar-UI ===================== */
+function mvEl(tag, props, kids){
+  const e=document.createElement(tag);
+  if(props) Object.keys(props).forEach(k=>{
+    if(k==='style') e.setAttribute('style', props[k]);
+    else if(k==='class') e.className=props[k];
+    else if(k in e) e[k]=props[k]; else e.setAttribute(k, props[k]);
+  });
+  (kids||[]).forEach(c=> c!=null && e.appendChild(typeof c==='string'?document.createTextNode(c):c));
+  return e;
+}
+function mvLabel(t){ return mvEl('label',{style:'margin-top:8px;'},[t]); }
+function mvSeg(current, onPick){
+  const seg=mvEl('div',{class:'mv-seg'});
+  for(let n=1;n<=5;n++){
+    const b=mvEl('button',{type:'button'},[String(n)]);
+    if(mvClamp(current)===n) b.classList.add('active');
+    b.addEventListener('click',()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); onPick(n); draw(); });
+    seg.appendChild(b);
+  }
+  return seg;
+}
+function mvColorInput(val, onChange){
+  const i=mvEl('input',{type:'color', value:val, style:'width:100%;height:34px;padding:2px;'});
+  i.addEventListener('input',e=>{ onChange(e.target.value); draw(); });
+  return i;
+}
+function mvTextInput(val, onChange, ph){
+  const i=mvEl('input',{type:'text', value:val||'', placeholder:ph||''});
+  i.addEventListener('input',e=>{ onChange(e.target.value); draw(); });
+  return i;
+}
+function mvFontSelect(val, onChange){
+  const s=mvEl('select'); s.innerHTML=buildFontOptions(val);
+  s.addEventListener('change',e=>{ onChange(e.target.value); draw(); });
+  return s;
+}
+function mvCheck(labelText, checked, onChange){
+  const wrap=mvEl('label',{style:'display:flex;align-items:center;gap:8px;margin:8px 0 2px;cursor:pointer;font-size:12px;color:#ccc;'});
+  const c=mvEl('input',{type:'checkbox', checked:!!checked, style:'width:auto;'});
+  c.addEventListener('change',e=>{ onChange(e.target.checked); draw(); });
+  wrap.appendChild(c); wrap.appendChild(mvEl('span',null,[labelText]));
+  return wrap;
+}
+// kind bestimmt Kompression/Transparenz; assign(dataUrl,img) speichert Bild
+function mvLoadFile(file, compressKey, assign, thumbEl, labelEl){
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    const data=await compressDataUrl(ev.target.result, compressKey);
+    const img=new Image();
+    img.onload=()=>{ assign(data, img); if(thumbEl) thumbEl.style.backgroundImage=`url(${data})`; if(labelEl) labelEl.textContent=file.name; draw(); if(window.updateStorageMeter) updateStorageMeter(); };
+    img.src=data;
+  };
+  reader.readAsDataURL(file);
+}
+function mvUploadMini(text, curSrc, compressKey, assign, clearFn){
+  const thumb=mvEl('div',{class:'mv-thumb'});
+  if(curSrc) thumb.style.backgroundImage=`url(${curSrc})`;
+  const label=mvEl('span',{class:'mv-uplabel'},[curSrc?'(gewählt)':text]);
+  const fileIn=mvEl('input',{type:'file', accept:'image/*'});
+  fileIn.addEventListener('change',e=>{ const f=e.target.files[0]; if(f) mvLoadFile(f, compressKey, assign, thumb, label); });
+  const row=mvEl('label',{class:'mv-upload-mini'},[thumb, label, fileIn]);
+  if(clearFn){
+    const x=mvEl('span',{class:'mv-clear-mini', title:'Entfernen'},['✕']);
+    x.addEventListener('click',ev=>{ ev.preventDefault(); ev.stopPropagation(); clearFn(); thumb.style.backgroundImage=''; label.textContent=text; fileIn.value=''; draw(); });
+    row.appendChild(x);
+  }
+  return row;
+}
+function mvSection(title, openByDefault, bodyKids){
+  const body=mvEl('div',{class:'mv-body'}, bodyKids);
+  const sum=mvEl('summary',null,[title]);
+  const d=mvEl('details',{class:'mv-sec'},[sum, body]);
+  if(openByDefault) d.open=true;
+  return d;
+}
+function mvGrid2(kids){ return mvEl('div',{class:'mv-grid2'}, kids); }
+function mvField(labelText, control){ return mvEl('div',null,[mvLabel(labelText), control]); }
+
+function renderMVPanel(){
+  const root=document.getElementById('mvPanel'); if(!root) return;
+  root.innerHTML='';
+
+  // --- Allgemein: Anzahl Spiele ---
+  const countLabel=mvEl('div',{class:'step-lbl'},[mvEl('label',{style:'margin:0;'},['Anzahl Spiele']), mvEl('span',{class:'step-ends'},['1 – 9'])]);
+  const countSeg=mvEl('div',{class:'mv-seg', style:'flex-wrap:wrap;'});
+  for(let n=1;n<=9;n++){
+    const b=mvEl('button',{type:'button', style:'flex:1 1 18%;'},[String(n)]);
+    if(MV.count===n) b.classList.add('active');
+    b.addEventListener('click',()=>{ MV.count=n; renderMVPanel(); draw(); });
+    countSeg.appendChild(b);
+  }
+  root.appendChild(mvSection('Allgemein', true, [countLabel, countSeg,
+    mvEl('div',{class:'hint', style:'margin-top:6px;'},['Nicht sichtbare Kacheln verschwinden automatisch – das Raster richtet sich sauber neu aus.'])
+  ]));
+
+  // --- Monat ---
+  const m=MV.month;
+  root.appendChild(mvSection('Monat', false, [
+    mvField('Text', mvTextInput(m.text, v=>m.text=v, 'JANUAR 2026')),
+    mvField('Schriftart', mvFontSelect(m.font, v=>m.font=v)),
+    mvGrid2([ mvField('Größe', mvSeg(m.size, v=>m.size=v)), mvField('Farbe', mvColorInput(m.color, v=>m.color=v)) ]),
+    mvGrid2([ mvField('Position ↔', mvSeg(m.posX, v=>m.posX=v)), mvField('Position ↕', mvSeg(m.posY, v=>m.posY=v)) ])
+  ]));
+
+  // --- Home/Away-Leiste ---
+  const bl=MV.barLeft, br=MV.barRight;
+  root.appendChild(mvSection('Home/Away-Leiste', false, [
+    mvEl('div',{class:'line-caption'},['Linkes Feld']),
+    mvField('Text', mvTextInput(bl.text, v=>bl.text=v, 'HEIM')),
+    mvField('Schriftart', mvFontSelect(bl.font, v=>bl.font=v)),
+    mvGrid2([ mvField('Hintergrund', mvColorInput(bl.bg, v=>bl.bg=v)), mvField('Schrift', mvColorInput(bl.fg, v=>bl.fg=v)) ]),
+    mvField('Schriftgröße', mvSeg(bl.size, v=>bl.size=v)),
+    mvEl('div',{class:'line-caption', style:'margin-top:10px;'},['Rechtes Feld']),
+    mvField('Text', mvTextInput(br.text, v=>br.text=v, 'AUSWÄRTS')),
+    mvField('Schriftart', mvFontSelect(br.font, v=>br.font=v)),
+    mvGrid2([ mvField('Hintergrund', mvColorInput(br.bg, v=>br.bg=v)), mvField('Schrift', mvColorInput(br.fg, v=>br.fg=v)) ]),
+    mvField('Schriftgröße', mvSeg(br.size, v=>br.size=v))
+  ]));
+
+  // --- Vereinslogo ---
+  const cl=MV.club;
+  root.appendChild(mvSection('Vereinslogo', false, [
+    mvUploadMini('Logo wählen…', mvSrc.club, 'home', (data,img)=>{ mvSrc.club=data; mvImg.club=img; }, ()=>{ mvSrc.club=''; mvImg.club=null; }),
+    mvEl('div',{class:'hint', style:'margin:4px 0;'},['Ohne eigenes Logo wird automatisch das Heim-Team-Logo aus dem Bereich „Logos“ verwendet.']),
+    mvGrid2([ mvField('Größe', mvSeg(cl.size, v=>cl.size=v)), mvField('Transparenz %', (()=>{ const i=mvEl('input',{type:'number', value:cl.opacity, min:0, max:100}); i.addEventListener('input',e=>{ cl.opacity=Number(e.target.value); draw(); }); return i; })()) ]),
+    mvGrid2([ mvField('Position ↔', mvSeg(cl.posX, v=>cl.posX=v)), mvField('Position ↕', mvSeg(cl.posY, v=>cl.posY=v)) ]),
+    mvCheck('Schatten anzeigen', cl.shadow, v=>cl.shadow=v)
+  ]));
+
+  // --- Hintergrund ---
+  const bgSeg=mvEl('div',{class:'mv-seg'});
+  [['solid','Vollton'],['gradient','Verlauf'],['image','Bild']].forEach(([val,lbl])=>{
+    const b=mvEl('button',{type:'button'},[lbl]); if(MV.bgType===val) b.classList.add('active');
+    b.addEventListener('click',()=>{ MV.bgType=val; bgSeg.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); draw(); });
+    bgSeg.appendChild(b);
+  });
+  root.appendChild(mvSection('Hintergrund', false, [
+    mvField('Typ', bgSeg),
+    mvGrid2([ mvField('Farbe', mvColorInput(MV.bgColor, v=>MV.bgColor=v)), mvField('Farbe 2 (Verlauf)', mvColorInput(MV.bgColor2, v=>MV.bgColor2=v)) ]),
+    mvField('Hintergrundbild', mvUploadMini('Bild wählen…', mvSrc.bg, 'bg', (data,img)=>{ mvSrc.bg=data; mvImg.bg=img; MV.bgType='image'; renderMVPanel(); }, ()=>{ mvSrc.bg=''; mvImg.bg=null; }))
+  ]));
+
+  // --- Spielerbild ---
+  const pl=MV.player;
+  root.appendChild(mvSection('Spielerbild (optional)', false, [
+    mvUploadMini('Freigestelltes Foto wählen…', mvSrc.player, 'player-lineup', (data,img)=>{ mvSrc.player=data; mvImg.player=img; }, ()=>{ mvSrc.player=''; mvImg.player=null; }),
+    mvGrid2([ mvField('Größe', mvSeg(pl.size, v=>pl.size=v)), mvField('Transparenz %', (()=>{ const i=mvEl('input',{type:'number', value:pl.opacity, min:0, max:100}); i.addEventListener('input',e=>{ pl.opacity=Number(e.target.value); draw(); }); return i; })()) ]),
+    mvGrid2([ mvField('Position ↔', mvSeg(pl.posX, v=>pl.posX=v)), mvField('Position ↕', mvSeg(pl.posY, v=>pl.posY=v)) ]),
+    mvCheck('Hinter dem Raster anzeigen (Ebene)', pl.behind, v=>pl.behind=v)
+  ]));
+
+  // --- Spielkacheln ---
+  const tilesBody=[];
+  for(let i=0;i<MV.count;i++){
+    tilesBody.push(mvBuildTileEditor(i));
+  }
+  root.appendChild(mvSection('Spielkacheln', true, tilesBody.length?tilesBody:[mvEl('div',{class:'hint'},['Keine Kacheln.'])]));
+}
+function mvBuildTileEditor(i){
+  const t=MV.tiles[i];
+  const swatch=mvEl('span',{class:'mv-swatch', style:`background:${t.bg};`});
+  const sum=mvEl('summary',null,[swatch, `Spiel ${i+1}`]);
+  const body=mvEl('div',{class:'mv-tile-body'},[
+    mvField('Gegnerlogo', mvUploadMini('Logo wählen…', mvSrc.opp[i], 'home', (data,img)=>{ mvSrc.opp[i]=data; mvImg.opp[i]=img; }, ()=>{ mvSrc.opp[i]=''; mvImg.opp[i]=null; })),
+    mvField('Wettbewerbslogo (optional)', mvUploadMini('Logo wählen…', mvSrc.comp[i], 'home', (data,img)=>{ mvSrc.comp[i]=data; mvImg.comp[i]=img; }, ()=>{ mvSrc.comp[i]=''; mvImg.comp[i]=null; })),
+    mvGrid2([ mvField('Datum', mvTextInput(t.date, v=>t.date=v, 'JAN 5')), mvField('Uhrzeit', mvTextInput(t.time, v=>t.time=v, '16:30')) ]),
+    mvGrid2([
+      mvField('Hintergrundfarbe', mvColorInput(t.bg, v=>{ t.bg=v; swatch.style.background=v; })),
+      mvField('Textfarbe', mvColorInput(t.fg, v=>t.fg=v))
+    ]),
+    mvGrid2([ mvField('Logo-Größe', mvSeg(t.logoSize, v=>t.logoSize=v)), mvField('Logo-Position ↕', mvSeg(t.logoPos, v=>t.logoPos=v)) ]),
+    mvGrid2([ mvField('Abstand Elemente', mvSeg(t.gap, v=>t.gap=v)), mvField('Innenabstand', mvSeg(t.pad, v=>t.pad=v)) ])
+  ]);
+  const d=mvEl('details',{class:'mv-tile'},[sum, body]);
+  return d;
+}
+
 function applyTabVisibility(){
   renderHeadlineBox();
   document.getElementById('logosField').style.display = (activeTab==='neuzugang') ? 'none' : 'block';
@@ -2722,6 +3132,18 @@ function applyTabVisibility(){
   if(typeof updateErgLayoutUI === 'function') updateErgLayoutUI();
   // Info-Layout-Farbfeld nur bei Matchday & Pokal + passende Zeilen
   if(typeof updateInfoColorVisibility === 'function') updateInfoColorVisibility();
+
+  // Monatsvorschau bringt eigene Hintergrund-/Logo-/Fußzeilen-Einstellungen mit →
+  // gemeinsame Felder ausblenden, damit nichts doppelt/irritierend erscheint.
+  const isMonat = (activeTab==='monat');
+  // Fußzeile ist sonst immer sichtbar → hier explizit umschalten
+  const footerFld=document.getElementById('footerField');
+  if(footerFld) footerFld.style.display = isMonat ? 'none' : '';
+  if(isMonat){
+    ['bgField','logosField','infoColorsField'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
+    if(spielort) spielort.style.display='none';
+    if(typeof renderMVPanel==='function') renderMVPanel();
+  }
 }
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -3122,6 +3544,8 @@ function serializeState(){
   data.steps = Object.assign({}, STEPS);
   data.typo = JSON.parse(JSON.stringify(TYPO));
   data.headlines = JSON.parse(JSON.stringify(HEADLINES));  // Überschrift-Stil pro Template
+  // Monatsvorschau: kompletter Zustand + Bildquellen
+  data.mv = { settings: JSON.parse(JSON.stringify(MV)), src: JSON.parse(JSON.stringify(mvSrc)) };
 
   // Wasserzeichen wird fest eingebettet und NICHT in den Entwurf kopiert (spart Platz)
   ['bg','home','away','player','coach','luBg'].forEach(k=>{ if(state[k]) data.images[k] = state[k].src; });
@@ -3179,6 +3603,31 @@ async function applyState(data){
   // Überschrift-Stile wiederherstellen (fehlende Templates behalten Standard)
   if(data.headlines){
     Object.keys(data.headlines).forEach(k=>{ HEADLINES[k] = Object.assign(defaultHL(), data.headlines[k]); });
+  }
+
+  // Monatsvorschau wiederherstellen (Einstellungen + Bilder). Fehlt der Block, bleibt der Standard.
+  if(data.mv){
+    const s = data.mv.settings || {};
+    MV = Object.assign(defaultMV(), s);
+    MV.month = Object.assign(defaultMV().month, s.month||{});
+    MV.barLeft = Object.assign(defaultMV().barLeft, s.barLeft||{});
+    MV.barRight = Object.assign(defaultMV().barRight, s.barRight||{});
+    MV.club = Object.assign(defaultMV().club, s.club||{});
+    MV.player = Object.assign(defaultMV().player, s.player||{});
+    MV.tiles = [];
+    for(let i=0;i<MV_TILE_MAX;i++){ MV.tiles[i] = Object.assign(defaultMVTile(), (s.tiles&&s.tiles[i])||{}); }
+    // Bilder zurücksetzen und aus gespeicherten Quellen neu laden
+    mvImg.bg=null; mvImg.player=null; mvImg.club=null;
+    for(let i=0;i<MV_TILE_MAX;i++){ mvImg.opp[i]=null; mvImg.comp[i]=null; mvSrc.opp[i]=''; mvSrc.comp[i]=''; }
+    mvSrc.bg=''; mvSrc.player=''; mvSrc.club='';
+    const src = data.mv.src || {};
+    const loadMV=(dataUrl, assign)=>{ if(!dataUrl) return; const im=new Image(); im.onload=()=>{ assign(im); draw(); }; im.src=dataUrl; };
+    if(src.bg){ mvSrc.bg=src.bg; loadMV(src.bg, im=>mvImg.bg=im); }
+    if(src.player){ mvSrc.player=src.player; loadMV(src.player, im=>mvImg.player=im); }
+    if(src.club){ mvSrc.club=src.club; loadMV(src.club, im=>mvImg.club=im); }
+    if(Array.isArray(src.opp)) src.opp.forEach((u,i)=>{ if(u){ mvSrc.opp[i]=u; loadMV(u, im=>mvImg.opp[i]=im); } });
+    if(Array.isArray(src.comp)) src.comp.forEach((u,i)=>{ if(u){ mvSrc.comp[i]=u; loadMV(u, im=>mvImg.comp[i]=im); } });
+    if(typeof renderMVPanel==='function' && activeTab==='monat') renderMVPanel();
   }
 
   if(data.levels){
@@ -3367,6 +3816,7 @@ refreshProjectSelect();
 buildStepSegs();
 applyTabVisibility();
 renderFormationFields();
+renderMVPanel();
 updateStorageMeter();
 setTimeout(draw, 400);
 
